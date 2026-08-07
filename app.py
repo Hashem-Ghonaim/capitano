@@ -40,13 +40,13 @@ def fix_sequences_now():
             table_name = table.name
             seq_name = f"{table_name}_id_seq"
             try:
-                sql = text(f"SELECT setval('{seq_name}', (SELECT COALESCE(MAX(id), 1) FROM {table_name}));")
+                sql = text(f"SELECT setval('{seq_name}', (SELECT COALESCE(MAX(id), 1) FROM \"{table_name}\"));")
                 db.session.execute(sql)
                 db.session.commit()
                 results.append(f"Fixed {table_name}")
             except Exception as e:
                 db.session.rollback()
-                results.append(f"Skipped {table_name}")
+                results.append(f"Skipped {table_name}: {str(e)}")
         return "<br>".join(results)
     except Exception as e:
         return f"Error: {str(e)}"
