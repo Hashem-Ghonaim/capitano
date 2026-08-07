@@ -5,6 +5,8 @@ import math
 import random
 import string
 from datetime import datetime, date, timedelta
+from sqlalchemy import func, case, extract, and_, or_, cast, Date, text
+import uuid
 import calendar
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
@@ -27,6 +29,29 @@ import traceback
 def handle_exception(e):
     # return the traceback as text
     return '<pre>' + traceback.format_exc() + '</pre>', 500
+
+app.config['SUPABASE_KEY'] = os.getenv("SUPABASE_KEY")
+
+@app.route('/fix_sequences_now')
+def fix_sequences_now():
+    try:
+        results = []
+        for table in db.Model.metadata.sorted_tables:
+            table_name = table.name
+            seq_name = f"{table_name}_id_seq"
+            try:
+                sql = text(f"SELECT setval('{seq_name}', (SELECT COALESCE(MAX(id), 1) FROM {table_name}));")
+                db.session.execute(sql)
+                db.session.commit()
+                results.append(f"Fixed {table_name}")
+            except Exception as e:
+                db.session.rollback()
+                results.append(f"Skipped {table_name}")
+        return "<br>".join(results)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# --- تهيئة Supabase Storage ---
 
 app.config['SECRET_KEY'] = 'master_erp_pro_2025'
 # --- Configuration ---
