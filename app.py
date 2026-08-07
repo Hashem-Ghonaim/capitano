@@ -1442,6 +1442,37 @@ def inject_settings():
             global_company_logo=setting.company_logo
         )
     return dict(global_theme_color='#0d6efd', global_company_logo=None)
+
+@app.route('/manifest.json')
+def serve_manifest():
+    from flask import jsonify
+    setting = SystemSetting.query.first()
+    logo = setting.company_logo if setting and setting.company_logo else 'icon.png'
+    name = setting.company_name if setting and setting.company_name else 'My ERP System'
+    theme_color = setting.theme_color if setting and setting.theme_color else '#0d6efd'
+    manifest = {
+      "name": name,
+      "short_name": "ERP",
+      "start_url": "/",
+      "display": "standalone",
+      "background_color": "#f0f2f5",
+      "theme_color": theme_color,
+      "orientation": "portrait",
+      "icons": [
+        {
+          "src": f"/static/uploads/{logo}",
+          "sizes": "192x192",
+          "type": "image/png"
+        },
+        {
+          "src": f"/static/uploads/{logo}",
+          "sizes": "512x512",
+          "type": "image/png"
+        }
+      ]
+    }
+    return jsonify(manifest)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
