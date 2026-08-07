@@ -238,7 +238,11 @@
                         {% endif %}
                     </div>
                     <div style="width: 60%; text-align: center;">
+                        {% if order.date|string >= '2026-08-07' %}
+                        <h3 class="fw-bold m-0 text-dark">كابيتانو</h3>
+                        {% else %}
                         <h3 class="fw-bold m-0 text-dark">مجموعة شركات ومصانع فور برزر</h3>
+                        {% endif %}
                         {% if order.sales_rep.phone %}
                         <div class="mt-1 text-muted small">للتواصل: {{ order.sales_rep.phone }}</div>
                         {% endif %}
@@ -452,7 +456,11 @@
                             ⚠️ الإستبدال عيوب مصنع فقط خلال 14 يوم من تاريخ الفاتورة بشرط سلامة المنتج
                         </p>
                     </div>
+                    {% if order.date|string >= '2026-08-07' %}
+                    <p class="fw-bold mt-2 mb-0" style="font-size: 0.85rem;">شكراً لثقتكم في كابيتانو ❤️</p>
+                    {% else %}
                     <p class="fw-bold mt-2 mb-0" style="font-size: 0.85rem;">شكراً لثقتكم في مجموعة فور برزر ❤️</p>
+                    {% endif %}
                     <small class="text-muted">نسعى دائماً لخدمتكم بأفضل جودة</small>
                 </div>
             </div>
