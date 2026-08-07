@@ -4546,15 +4546,19 @@ def delete_invoice(order_id):
         db.session.execute(text("DELETE FROM partner_transaction WHERE order_id = :oid"), {'oid': order_id})
         db.session.execute(text("DELETE FROM return_invoice WHERE order_id = :oid"), {'oid': order_id})
 
-        # 4. حذف الأصناف والفاتورة
+        # 4. حفظ بيانات العمولات قبل الحذف
+        seller_id = order.user_id
+        order_date = order.date
+
+        # 5. حذف الأصناف والفاتورة
         db.session.execute(text("DELETE FROM sale_item WHERE order_id = :oid"), {'oid': order_id})
         db.session.execute(text("DELETE FROM sale_order WHERE id = :oid"), {'oid': order_id})
 
         db.session.commit()
 
         # تحديث العمولات
-        if order.user_id:
-            update_monthly_commissions(order.user_id, order.date)
+        if seller_id:
+            update_monthly_commissions(seller_id, order_date)
 
         return jsonify({'success': True, 'message': 'تم حذف الفاتورة، تصفير المديونية، وإرجاع الفلوس للخزنة بنجاح! 💰🗑️'})
 
