@@ -63,6 +63,23 @@ def save_uploaded_file(file_obj, filename):
                 "x-upsert": "true"
             }
             file_content = file_obj.read()
+            try:
+                from PIL import Image
+                import io
+                img = Image.open(io.BytesIO(file_content))
+                if img.width > 800:
+                    ratio = 800.0 / img.width
+                    img = img.resize((800, int(img.height * ratio)), Image.LANCZOS)
+                output = io.BytesIO()
+                img_format = img.format if img.format else 'PNG'
+                if img_format == 'JPEG':
+                    img.save(output, format=img_format, optimize=True, quality=60)
+                else:
+                    img.save(output, format=img_format, optimize=True)
+                file_content = output.getvalue()
+            except Exception as e:
+                print("Image compression failed:", e)
+
             req = urllib.request.Request(url, data=file_content, headers=headers, method='POST')
             with urllib.request.urlopen(req) as response:
                 pass
