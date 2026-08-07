@@ -3093,7 +3093,7 @@ def add_supplier_payment():
     fname = None
     if 'receipt_image' in request.files and request.files['receipt_image'].filename:
         fname = secure_filename(request.files['receipt_image'].filename)
-        save_uploaded_file(request.files['receipt_image'], fname))
+        save_uploaded_file(request.files['receipt_image'], fname)
 
     # 1. تسجيل عملية السداد للمورد
     payment = SupplierPayment(
@@ -5212,7 +5212,7 @@ def update_product_image():
         if file:
             filename = secure_filename(file.filename)
             filename = f"{int(cairo_now().timestamp())}_{filename}"
-            save_uploaded_file(file, filename))
+            save_uploaded_file(file, filename)
 
             # تحديث المنتج
             variant = ProductVariant.query.get(product_id)
@@ -5538,7 +5538,7 @@ def new_purchase():
                     filename = secure_filename(file.filename)
                     # إضافة طابع زمني لاسم الصورة لمنع التداخل
                     filename = f"{int(cairo_now().timestamp())}_{filename}"
-                    save_uploaded_file(file, filename))
+                    save_uploaded_file(file, filename)
                     image_filename = filename
 
             # أ) تحديد الكاتيجوري أولاً
@@ -6485,7 +6485,7 @@ def edit_product(id):
         file = request.files['image']
         if file and file.filename != '':
             filename = secure_filename(file.filename)
-            save_uploaded_file(file, filename))
+            save_uploaded_file(file, filename)
             var.model.image = filename
     if diff != 0: var.stock = new_stock; db.session.add(StockMovement(variant_id=var.id, user_id=current_user.id, quantity_change=diff, reason="تعديل يدوي"))
     db.session.commit(); return redirect(url_for('inventory'))
@@ -7088,7 +7088,7 @@ def settings():
                 if file and file.filename != '':
                     filename = secure_filename(file.filename)
                     # حفظ الملف في مجلد uploads
-                    save_uploaded_file(file, filename))
+                    save_uploaded_file(file, filename)
                     # تحديث اسم الملف في الداتابيز
                     setting.company_logo = filename
 
@@ -8303,7 +8303,7 @@ def qassat_add():
     file = request.files.get('custom_image')
     if file and file.filename != '':
         filename = secure_filename(f"qassa_{cairo_now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
-        save_uploaded_file(file, filename))
+        save_uploaded_file(file, filename)
         custom_image = filename
         
     if product_model_id and product_model_id != '':
