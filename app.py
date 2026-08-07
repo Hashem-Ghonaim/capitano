@@ -18,7 +18,7 @@ def round_half(value):
     return round(float(value) * 2) / 2
 
 from werkzeug.utils import secure_filename
-from sqlalchemy import func, text, inspect, or_, event
+from sqlalchemy import func, cast, Date, text, inspect, or_, event
 import re  # تأكد أن هذا السطر موجود في أول الملف مع الـ imports
 app = Flask(__name__)
 import traceback
@@ -664,14 +664,14 @@ def partners_report():
         # 3. حساب أرقام الفترة (للتحليل المالي)
         period_trans = PartnerTransaction.query.filter(
             PartnerTransaction.partner_id == p.id,
-            func.date(PartnerTransaction.date) >= start_date_str,
-            func.date(PartnerTransaction.date) <= end_date_str
+            cast(PartnerTransaction.date, Date) >= start_date_str,
+            cast(PartnerTransaction.date, Date) <= end_date_str
         ).all()
         
         hr_period_trans = HRTransaction.query.filter(
             HRTransaction.user_id == p.id,
-            func.date(HRTransaction.date) >= start_date_str,
-            func.date(HRTransaction.date) <= end_date_str
+            cast(HRTransaction.date, Date) >= start_date_str,
+            cast(HRTransaction.date, Date) <= end_date_str
         ).all()
 
         gross_comm = sum(t.amount for t in period_trans if t.type == 'commission_gross')
@@ -732,13 +732,13 @@ def partners_report():
         p_gross_items = db.session.query(func.sum(SaleItem.quantity)).join(SaleOrder).filter(
             SaleOrder.is_proforma == False,
             SaleOrder.user_id.in_(p_team_ids),
-            func.date(SaleOrder.date) >= start_date_str,
-            func.date(SaleOrder.date) <= end_date_str
+            cast(SaleOrder.date, Date) >= start_date_str,
+            cast(SaleOrder.date, Date) <= end_date_str
         ).scalar() or 0
         p_returned_items = db.session.query(func.sum(ReturnInvoice.total_qty)).join(SaleOrder).filter(
             SaleOrder.user_id.in_(p_team_ids),
-            func.date(ReturnInvoice.date) >= start_date_str,
-            func.date(ReturnInvoice.date) <= end_date_str
+            cast(ReturnInvoice.date, Date) >= start_date_str,
+            cast(ReturnInvoice.date, Date) <= end_date_str
         ).scalar() or 0
         p_net_items = max(0, p_gross_items - p_returned_items)
 
@@ -790,8 +790,8 @@ def partners_report():
     shared_team_items = db.session.query(func.sum(SaleItem.quantity))\
         .join(SaleOrder)\
         .filter(SaleOrder.is_proforma == False,
-                func.date(SaleOrder.date) >= start_date_str,
-                func.date(SaleOrder.date) <= end_date_str,
+                cast(SaleOrder.date, Date) >= start_date_str,
+                cast(SaleOrder.date, Date) <= end_date_str,
                 SaleOrder.user_id.in_(shared_team_ids)).scalar() or 0
                 
     # 2. إجمالي الخصميات والمصاريف المشتركة للشركاء (ID 1 و 3) في الفترة المحددة
@@ -799,8 +799,8 @@ def partners_report():
     partners_period_deductions = PartnerTransaction.query.filter(
         PartnerTransaction.partner_id.in_([1, 3]),
         PartnerTransaction.type.in_(['discount_deduction', 'return_penalty', 'expense_share', 'staff_expense']),
-        func.date(PartnerTransaction.date) >= start_date_str,
-        func.date(PartnerTransaction.date) <= end_date_str
+        cast(PartnerTransaction.date, Date) >= start_date_str,
+        cast(PartnerTransaction.date, Date) <= end_date_str
     ).all()
     
     total_period_deductions = sum(t.amount for t in partners_period_deductions)
@@ -963,8 +963,8 @@ def owners_report():
     total_items = db.session.query(func.sum(SaleItem.quantity))\
         .join(SaleOrder)\
         .filter(SaleOrder.is_proforma == False,
-                func.date(SaleOrder.date) >= start_date_str,
-                func.date(SaleOrder.date) <= end_date_str).scalar() or 0
+                cast(SaleOrder.date, Date) >= start_date_str,
+                cast(SaleOrder.date, Date) <= end_date_str).scalar() or 0
 
     # 2. إجمالي ربح الشركة من المكسب في القطعة (سعر البيع - سعر الشراء)
     total_markup_profit = db.session.query(
@@ -972,23 +972,23 @@ def owners_report():
     ).join(SaleOrder)\
      .join(ProductVariant, SaleItem.variant_id == ProductVariant.id)\
      .filter(SaleOrder.is_proforma == False,
-             func.date(SaleOrder.date) >= start_date_str,
-             func.date(SaleOrder.date) <= end_date_str).scalar() or 0.0
+             cast(SaleOrder.date, Date) >= start_date_str,
+             cast(SaleOrder.date, Date) <= end_date_str).scalar() or 0.0
 
     # 3. المصروفات والخصومات المشتركة من حركات الشركاء (ID 1=أبو إياد و 3=أبو مالك) في الفترة
     deduction_types = ['sub_commission', 'discount_deduction', 'return_penalty', 'expense_share', 'staff_expense', 'salary_expense', 'shipping_extra_commission']
     period_deductions = PartnerTransaction.query.filter(
         PartnerTransaction.partner_id.in_([1, 3]),
         PartnerTransaction.type.in_(deduction_types),
-        func.date(PartnerTransaction.date) >= start_date_str,
-        func.date(PartnerTransaction.date) <= end_date_str
+        cast(PartnerTransaction.date, Date) >= start_date_str,
+        cast(PartnerTransaction.date, Date) <= end_date_str
     ).all()
 
     # 4. عمولات المدراء العاديين (commission_gross) في نفس الفترة (قيمة موجبة في الداتا بيز، فنقوم بطرحها كخصم)
     manager_commissions_positive = db.session.query(func.sum(PartnerTransaction.amount)).filter(
         PartnerTransaction.type == 'commission_gross',
-        func.date(PartnerTransaction.date) >= start_date_str,
-        func.date(PartnerTransaction.date) <= end_date_str
+        cast(PartnerTransaction.date, Date) >= start_date_str,
+        cast(PartnerTransaction.date, Date) <= end_date_str
     ).scalar() or 0.0
     
     manager_commissions_total = -abs(manager_commissions_positive) # تحويلها لسالب لتتماشى مع باقي الخصومات
@@ -996,8 +996,8 @@ def owners_report():
     # 5. مكافآت الموظفين من الموارد البشرية (غير المديرين) في نفس الفترة
     hr_bonuses_total = db.session.query(func.sum(HRTransaction.amount)).filter(
         HRTransaction.type == 'bonus',
-        func.date(HRTransaction.date) >= start_date_str,
-        func.date(HRTransaction.date) <= end_date_str
+        cast(HRTransaction.date, Date) >= start_date_str,
+        cast(HRTransaction.date, Date) <= end_date_str
     ).join(User, HRTransaction.user_id == User.id).filter(
         User.role != 'manager',
         User.manager_id.in_([1, 3])
@@ -1129,8 +1129,8 @@ def owners_report():
         period_withdrawals = PartnerTransaction.query.filter(
             PartnerTransaction.partner_id == o.id,
             PartnerTransaction.type.in_(['withdrawal', 'personal_expense_share', 'personal_salary_expense', 'partner_bonus', 'partner_deduction']),
-            func.date(PartnerTransaction.date) >= start_date_str,
-            func.date(PartnerTransaction.date) <= end_date_str
+            cast(PartnerTransaction.date, Date) >= start_date_str,
+            cast(PartnerTransaction.date, Date) <= end_date_str
         ).all()
         withdrawals_period = sum(t.amount for t in period_withdrawals)
 
@@ -1639,13 +1639,13 @@ def dashboard():
     # === 1. حساب مبيعات اليوم الصافية ===
     # أ) إجمالي الفواتير (Gross)
     today_gross = db.session.query(func.sum(SaleOrder.final_total))\
-        .filter(func.date(SaleOrder.date) == today,
+        .filter(cast(SaleOrder.date, Date) == today,
                 SaleOrder.user_id.in_(accessible_ids),
                 SaleOrder.is_proforma == False).scalar() or 0.0
 
     # ب) المرتجعات النقدية (Refunds) - قيمتها سالبة في الداتا بيز
     today_refunds = db.session.query(func.sum(FinancialTransaction.amount))\
-        .filter(func.date(FinancialTransaction.date) == today,
+        .filter(cast(FinancialTransaction.date, Date) == today,
                 FinancialTransaction.type == 'refund',
                 FinancialTransaction.created_by_id.in_(accessible_ids)).scalar() or 0.0
 
@@ -1654,12 +1654,12 @@ def dashboard():
 
     # === 2. حساب مبيعات الشهر الصافية ===
     month_gross = db.session.query(func.sum(SaleOrder.final_total))\
-        .filter(func.strftime('%Y-%m', SaleOrder.date) == month_str,
+        .filter(func.to_char(SaleOrder.date, 'YYYY-MM') == month_str,
                 SaleOrder.user_id.in_(accessible_ids),
                 SaleOrder.is_proforma == False).scalar() or 0.0
 
     month_refunds = db.session.query(func.sum(FinancialTransaction.amount))\
-        .filter(func.strftime('%Y-%m', FinancialTransaction.date) == month_str,
+        .filter(func.to_char(FinancialTransaction.date, 'YYYY-MM') == month_str,
                 FinancialTransaction.type == 'refund',
                 FinancialTransaction.created_by_id.in_(accessible_ids)).scalar() or 0.0
 
@@ -1686,7 +1686,7 @@ def dashboard():
         # نستخدم جدول PartnerTransaction لحساب صافي الربح الدقيق
         trans = PartnerTransaction.query.filter(
             PartnerTransaction.partner_id == current_user.id,
-            func.strftime('%Y-%m', PartnerTransaction.date) == month_str
+            func.to_char(PartnerTransaction.date, 'YYYY-MM') == month_str
         ).all()
 
         # صافي الربح = مجموع كل الحركات (الدخل بالموجب والخصم بالسالب)
@@ -2934,7 +2934,7 @@ def update_monthly_commissions(sales_rep_id, ref_date):
             SaleOrder.user_id == sales_rep.id,
             SaleOrder.is_proforma == False,
             SaleOrder.is_reviewed == True,
-            func.strftime('%Y-%m', SaleOrder.date) == target_month_str
+            func.to_char(SaleOrder.date, 'YYYY-MM') == target_month_str
         ).all()
 
         total_month_comm = 0.0
@@ -3146,8 +3146,8 @@ def expenses_details():
 
     # 2. الاستعلام الأساسي (فلترة بالتاريخ)
     query = Expense.query.filter(
-        func.date(Expense.date) >= start_date,
-        func.date(Expense.date) <= end_date
+        cast(Expense.date, Date) >= start_date,
+        cast(Expense.date, Date) <= end_date
     ).order_by(Expense.date.desc())
 
     # 3. تطبيق فلتر التصنيف
@@ -3729,8 +3729,8 @@ def shipping_daily_report():
     #    هذه هي الحركات الفعلية التي تمت عند الضغط على "تحصيل" في صفحة الشحن
     settle_transactions = FinancialTransaction.query.filter(
         FinancialTransaction.category == 'تحصيل شحن',
-        func.date(FinancialTransaction.date) >= start_date,
-        func.date(FinancialTransaction.date) <= end_date
+        cast(FinancialTransaction.date, Date) >= start_date,
+        cast(FinancialTransaction.date, Date) <= end_date
     ).order_by(FinancialTransaction.date.desc()).all()
 
     # 3. تجهيز البيانات
@@ -4373,7 +4373,7 @@ def transfer_sales():
     today = date.today()
     orders = SaleOrder.query.filter(
         SaleOrder.user_id == u_from.id,
-        func.date(SaleOrder.date) == today
+        cast(SaleOrder.date, Date) == today
     ).all()
 
     count = 0
@@ -5041,8 +5041,8 @@ def employee_profile(id):
 
     returned_items = db.session.query(func.sum(ReturnInvoice.total_qty)).join(SaleOrder).filter(
         SaleOrder.user_id == emp.id,
-        func.date(ReturnInvoice.date) >= month_start.date(),
-        func.date(ReturnInvoice.date) < month_end.date()
+        cast(ReturnInvoice.date, Date) >= month_start.date(),
+        cast(ReturnInvoice.date, Date) < month_end.date()
     ).scalar() or 0
     
     net_items = max(0, gross_items - returned_items)
@@ -5870,8 +5870,8 @@ def reports_hub():
         base_filters = [
             SaleOrder.is_proforma == False,
             SaleOrder.user_id.in_(accessible_ids),
-            func.date(SaleOrder.date) >= start_date_str,
-            func.date(SaleOrder.date) <= end_date_str
+            cast(SaleOrder.date, Date) >= start_date_str,
+            cast(SaleOrder.date, Date) <= end_date_str
         ]
 
         # 1. إجمالي المبيعات
@@ -5954,8 +5954,8 @@ def reports_hub():
     elif report_type == 'attendance':
         # جلب السجلات في الفترة المحددة
         query = Attendance.query.filter(
-            func.date(Attendance.date) >= start_date_str,
-            func.date(Attendance.date) <= end_date_str
+            cast(Attendance.date, Date) >= start_date_str,
+            cast(Attendance.date, Date) <= end_date_str
         )
 
         # ترتيب النتائج
@@ -6010,8 +6010,8 @@ def reports_hub():
             SaleOrder.is_proforma == False,
             or_(SaleOrder.is_shipping == False, SaleOrder.shipping_status == 'settled'),
             SaleOrder.user_id.in_(accessible_ids),
-            func.date(SaleOrder.date) >= start_date_str,
-            func.date(SaleOrder.date) <= end_date_str
+            cast(SaleOrder.date, Date) >= start_date_str,
+            cast(SaleOrder.date, Date) <= end_date_str
         ]
 
         total_rev = db.session.query(func.sum(SaleOrder.final_total - SaleOrder.shipping_fee)).filter(*sales_condition).scalar() or 0
@@ -6020,8 +6020,8 @@ def reports_hub():
 
         # 2. تحليل المصروفات
         all_expenses = Expense.query.filter(
-            func.date(Expense.date) >= start_date_str,
-            func.date(Expense.date) <= end_date_str
+            cast(Expense.date, Date) >= start_date_str,
+            cast(Expense.date, Date) <= end_date_str
         ).all()
 
         categories_data = {}
@@ -6203,7 +6203,7 @@ def reports_hub():
         # المشتريات (تتأثر بالتاريخ)
         top_suppliers = db.session.query(Supplier.name, func.count(PurchaseOrder.id).label('orders_count'), func.sum(PurchaseOrder.total_cost).label('total_purchases'))\
             .join(PurchaseOrder)\
-            .filter(func.date(PurchaseOrder.date) >= start_date_str, func.date(PurchaseOrder.date) <= end_date_str)\
+            .filter(cast(PurchaseOrder.date, Date) >= start_date_str, cast(PurchaseOrder.date, Date) <= end_date_str)\
             .group_by(Supplier.id).order_by(text('total_purchases DESC')).limit(5).all()
 
         data = {'suppliers_debt': suppliers_debt, 'total_debt': total_debt, 'top_suppliers': top_suppliers}
@@ -6218,8 +6218,8 @@ def reports_hub():
             date_filter = [
                 SaleOrder.user_id == emp.id,
                 SaleOrder.is_proforma == False,
-                func.date(SaleOrder.date) >= start_date_str,
-                func.date(SaleOrder.date) <= end_date_str
+                cast(SaleOrder.date, Date) >= start_date_str,
+                cast(SaleOrder.date, Date) <= end_date_str
             ]
 
             total_sales = db.session.query(func.sum(SaleOrder.final_total)).filter(*date_filter).scalar() or 0
@@ -6234,8 +6234,8 @@ def reports_hub():
             returned_items = db.session.query(func.sum(ReturnInvoice.total_qty))\
                 .join(SaleOrder)\
                 .filter(SaleOrder.user_id == emp.id,
-                        func.date(ReturnInvoice.date) >= start_date_str,
-                        func.date(ReturnInvoice.date) <= end_date_str).scalar() or 0
+                        cast(ReturnInvoice.date, Date) >= start_date_str,
+                        cast(ReturnInvoice.date, Date) <= end_date_str).scalar() or 0
             
             # صافي القطع هو الرقم الصحيح
             total_items = max(0, gross_items - returned_items)
@@ -6255,13 +6255,13 @@ def reports_hub():
         top_customers = db.session.query(Customer.name, func.count(SaleOrder.id).label('visits'), func.sum(SaleOrder.final_total).label('spent'))\
             .join(SaleOrder)\
             .filter(SaleOrder.is_proforma==False, SaleOrder.user_id.in_(accessible_ids))\
-            .filter(func.date(SaleOrder.date) >= start_date_str, func.date(SaleOrder.date) <= end_date_str)\
+            .filter(cast(SaleOrder.date, Date) >= start_date_str, cast(SaleOrder.date, Date) <= end_date_str)\
             .group_by(Customer.id).order_by(text('spent DESC')).limit(10).all()
 
         # العملاء الجدد (في الفترة المحددة)
         new_customers = Customer.query.filter(
-            func.date(Customer.created_at) >= start_date_str,
-            func.date(Customer.created_at) <= end_date_str,
+            cast(Customer.created_at, Date) >= start_date_str,
+            cast(Customer.created_at, Date) <= end_date_str,
             Customer.created_by_id.in_(accessible_ids)
         ).count()
 
@@ -6292,8 +6292,8 @@ def reports_hub():
                 .join(SaleOrder)\
                 .filter(SaleOrder.is_proforma == False,
                         SaleOrder.user_id.in_(team_ids),
-                        func.date(SaleOrder.date) >= start_date_str,
-                        func.date(SaleOrder.date) <= end_date_str).scalar() or 0
+                        cast(SaleOrder.date, Date) >= start_date_str,
+                        cast(SaleOrder.date, Date) <= end_date_str).scalar() or 0
 
             # ربح الشركة من مبيعات الفريق (سعر البيع - سعر التكلفة)
             company_profit = db.session.query(
@@ -6302,8 +6302,8 @@ def reports_hub():
              .join(ProductVariant, SaleItem.variant_id == ProductVariant.id)\
              .filter(SaleOrder.is_proforma == False,
                      SaleOrder.user_id.in_(team_ids),
-                     func.date(SaleOrder.date) >= start_date_str,
-                     func.date(SaleOrder.date) <= end_date_str).scalar() or 0.0
+                     cast(SaleOrder.date, Date) >= start_date_str,
+                     cast(SaleOrder.date, Date) <= end_date_str).scalar() or 0.0
 
             # العمولات (14 جنيه × عدد القطع)
             commissions = items_sold * 14
@@ -6507,7 +6507,7 @@ def attendance_report():
     month_str = request.args.get('month', date.today().strftime('%Y-%m'))
     user_id = request.args.get('user_id')
 
-    query = Attendance.query.filter(func.strftime('%Y-%m', Attendance.date) == month_str)
+    query = Attendance.query.filter(func.to_char(Attendance.date, 'YYYY-MM') == month_str)
 
     selected_user = None
     if user_id and user_id != 'all':
@@ -6575,7 +6575,7 @@ def calculate_attendance_deduction(u, month_str, att_settings, daily_rate):
         return 0, [], 0
 
     attendance_records = Attendance.query.filter(Attendance.user_id == u.id,
-                                                   func.strftime('%Y-%m', Attendance.date) == month_str).all()
+                                                   func.to_char(Attendance.date, 'YYYY-MM') == month_str).all()
 
     attendance_deduction = 0
     attendance_details = []
@@ -6775,7 +6775,7 @@ def payroll():
             .join(SaleOrder)\
             .filter(SaleOrder.user_id == u.id,
                     SaleOrder.is_proforma == False,
-                    func.strftime('%Y-%m', SaleOrder.date) == month_str).scalar() or 0
+                    func.to_char(SaleOrder.date, 'YYYY-MM') == month_str).scalar() or 0
 
         # === [تعديل] خصم المرتجعات من عدد القطع ===
         # أ) مرتجعات الموسم ككل (عشان الشريحة تكون صح)
@@ -6791,7 +6791,7 @@ def payroll():
         returned_items_current_month = db.session.query(func.sum(ReturnInvoice.total_qty))\
             .join(SaleOrder)\
             .filter(SaleOrder.user_id == u.id,
-                    func.strftime('%Y-%m', ReturnInvoice.date) == month_str).scalar() or 0
+                    func.to_char(ReturnInvoice.date, 'YYYY-MM') == month_str).scalar() or 0
 
         net_current_month_items = max(0, current_month_items - returned_items_current_month)
 
@@ -6804,7 +6804,7 @@ def payroll():
 
         # 4. جلب كافة الحركات المالية اليدوية (مكافآت، سلف، جزاءات، مرتجعات) لهذا الشهر
         hr_trans = HRTransaction.query.filter(HRTransaction.user_id == u.id,
-                                            func.strftime('%Y-%m', HRTransaction.date) == month_str).all()
+                                            func.to_char(HRTransaction.date, 'YYYY-MM') == month_str).all()
 
         bonuses = sum(t.amount for t in hr_trans if t.type == 'bonus') + overtime_bonus
         advances = sum(t.amount for t in hr_trans if t.type == 'advance')
@@ -8946,8 +8946,8 @@ def hr_payroll():
 
         returned_items = db.session.query(func.sum(ReturnInvoice.total_qty)).join(SaleOrder).filter(
             SaleOrder.user_id == emp.id,
-            func.date(ReturnInvoice.date) >= month_start.date(),
-            func.date(ReturnInvoice.date) < month_end.date()
+            cast(ReturnInvoice.date, Date) >= month_start.date(),
+            cast(ReturnInvoice.date, Date) < month_end.date()
         ).scalar() or 0
         
         net_items = max(0, gross_items - returned_items)
