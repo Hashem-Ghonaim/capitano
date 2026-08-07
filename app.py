@@ -21,6 +21,12 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import func, text, inspect, or_, event
 import re  # تأكد أن هذا السطر موجود في أول الملف مع الـ imports
 app = Flask(__name__)
+import traceback
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # return the traceback as text
+    return '<pre>' + traceback.format_exc() + '</pre>', 500
+
 app.config['SECRET_KEY'] = 'master_erp_pro_2025'
 # --- Configuration ---
 basedir = os.path.abspath(os.path.dirname(__file__))
