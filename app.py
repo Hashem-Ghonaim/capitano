@@ -33,6 +33,37 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'erp_crm.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static/uploads')
+
+import urllib.request
+import urllib.error
+
+def save_uploaded_file(file_obj, filename):
+    supabase_url = os.environ.get('SUPABASE_URL')
+    supabase_key = os.environ.get('SUPABASE_SECRET_KEY')
+    
+    if supabase_url and supabase_key:
+        try:
+            url = f"{supabase_url}/storage/v1/object/uploads/{filename}"
+            headers = {
+                "Authorization": f"Bearer {supabase_key}",
+                "apikey": supabase_key,
+                "Content-Type": getattr(file_obj, 'mimetype', 'application/octet-stream'),
+                "x-upsert": "true"
+            }
+            file_content = file_obj.read()
+            req = urllib.request.Request(url, data=file_content, headers=headers, method='POST')
+            with urllib.request.urlopen(req) as response:
+                pass
+            return True
+        except Exception as e:
+            print(f"Error uploading to Supabase: {e}")
+            file_obj.seek(0)
+            file_obj.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            return False
+    else:
+        file_obj.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return True
+
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
@@ -3062,7 +3093,7 @@ def add_supplier_payment():
     fname = None
     if 'receipt_image' in request.files and request.files['receipt_image'].filename:
         fname = secure_filename(request.files['receipt_image'].filename)
-        request.files['receipt_image'].save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+        save_uploaded_file(request.files['receipt_image'], fname))
 
     # 1. تسجيل عملية السداد للمورد
     payment = SupplierPayment(
@@ -5181,7 +5212,7 @@ def update_product_image():
         if file:
             filename = secure_filename(file.filename)
             filename = f"{int(cairo_now().timestamp())}_{filename}"
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            save_uploaded_file(file, filename))
 
             # تحديث المنتج
             variant = ProductVariant.query.get(product_id)
@@ -5507,7 +5538,7 @@ def new_purchase():
                     filename = secure_filename(file.filename)
                     # إضافة طابع زمني لاسم الصورة لمنع التداخل
                     filename = f"{int(cairo_now().timestamp())}_{filename}"
-                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                    save_uploaded_file(file, filename))
                     image_filename = filename
 
             # أ) تحديد الكاتيجوري أولاً
@@ -6454,7 +6485,7 @@ def edit_product(id):
         file = request.files['image']
         if file and file.filename != '':
             filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            save_uploaded_file(file, filename))
             var.model.image = filename
     if diff != 0: var.stock = new_stock; db.session.add(StockMovement(variant_id=var.id, user_id=current_user.id, quantity_change=diff, reason="تعديل يدوي"))
     db.session.commit(); return redirect(url_for('inventory'))
@@ -7057,7 +7088,7 @@ def settings():
                 if file and file.filename != '':
                     filename = secure_filename(file.filename)
                     # حفظ الملف في مجلد uploads
-                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                    save_uploaded_file(file, filename))
                     # تحديث اسم الملف في الداتابيز
                     setting.company_logo = filename
 
@@ -8272,7 +8303,7 @@ def qassat_add():
     file = request.files.get('custom_image')
     if file and file.filename != '':
         filename = secure_filename(f"qassa_{cairo_now().strftime('%Y%m%d%H%M%S')}_{file.filename}")
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        save_uploaded_file(file, filename))
         custom_image = filename
         
     if product_model_id and product_model_id != '':
