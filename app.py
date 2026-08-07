@@ -57,7 +57,7 @@ class SystemSetting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_name = db.Column(db.String(100), default="My ERP")
     company_logo = db.Column(db.String(150), default="default_logo.png") # اسم ملف الصورة
-    theme_color = db.Column(db.String(20), default="#0d6efd") # لون النظام
+    theme_color = db.Column(db.String(255), default="#0d6efd") # لون النظام
 
 class AttendanceSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -85,18 +85,18 @@ class AttendanceSettings(db.Model):
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     fullname = db.Column(db.String(100), nullable=False)
-    username = db.Column(db.String(50), unique=True, nullable=False)
+    username = db.Column(db.String(255), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), nullable=False)
-    phone = db.Column(db.String(20))
+    role = db.Column(db.String(255), nullable=False)
+    phone = db.Column(db.String(255))
     base_salary = db.Column(db.Float, default=0.0)
-    job_type = db.Column(db.String(20), default='fixed')
-    emp_code = db.Column(db.String(20), unique=True)
+    job_type = db.Column(db.String(255), default='fixed')
+    emp_code = db.Column(db.String(255), unique=True)
     permissions = db.Column(db.Text, default="")
     manager = db.relationship('User', remote_side=[id], backref='subordinates')
     manager_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    shift_start = db.Column(db.String(10), default='13:00')
-    shift_end = db.Column(db.String(10), default='17:00')
+    shift_start = db.Column(db.String(255), default='13:00')
+    shift_end = db.Column(db.String(255), default='17:00')
     working_hours = db.Column(db.Float, default=8.0)  # عدد ساعات العمل اليومية
     work_from_home = db.Column(db.Boolean, default=False)  # هل يعمل من المنزل؟
 
@@ -118,14 +118,14 @@ class Attendance(db.Model):
     date = db.Column(db.Date, default=date.today)
     check_in = db.Column(db.DateTime, nullable=True)
     check_out = db.Column(db.DateTime, nullable=True)
-    status = db.Column(db.String(20), default='present')
+    status = db.Column(db.String(255), default='present')
     user = db.relationship('User', backref='attendance_records')
 # في ملف app.py - داخل كلاس User
 
 
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(255), unique=True, nullable=False)
 
 class ProductModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -138,7 +138,7 @@ class EmployeeExcuse(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     date = db.Column(db.Date, default=date.today)
-    type = db.Column(db.String(20)) # 'day' أو 'hours'
+    type = db.Column(db.String(255)) # 'day' أو 'hours'
     hours = db.Column(db.Float, default=0.0)
     note = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=cairo_now)
@@ -147,7 +147,7 @@ class EmployeeExcuse(db.Model):
 class ProductVariant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     model_id = db.Column(db.Integer, db.ForeignKey('product_model.id'))
-    barcode = db.Column(db.String(50), unique=True)
+    barcode = db.Column(db.String(255), unique=True)
     cost_price = db.Column(db.Float)
     sell_price = db.Column(db.Float)
     stock = db.Column(db.Integer, default=0)
@@ -160,7 +160,7 @@ class Qassa(db.Model):
     code = db.Column(db.String(100)) # كود القطعة المخصص للقصة
     factory = db.Column(db.String(150))
     quantity = db.Column(db.Integer, default=1)
-    status = db.Column(db.String(50), default='جار التصنيع') # 'جار التصنيع' أو 'تم الاستلام'
+    status = db.Column(db.String(255), default='جار التصنيع') # 'جار التصنيع' أو 'تم الاستلام'
     created_at = db.Column(db.DateTime, default=cairo_now)
     
     product_model = db.relationship('ProductModel')
@@ -177,14 +177,14 @@ class QassaHistory(db.Model):
 class Supplier(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    phone = db.Column(db.String(20))
+    phone = db.Column(db.String(255))
     balance = db.Column(db.Float, default=0.0)
 # جدول جديد لتسجيل حركات الشركاء بالتفصيل الممل
 class PartnerTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     partner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     order_id = db.Column(db.Integer, db.ForeignKey('sale_order.id'), nullable=True)
-    type = db.Column(db.String(50))
+    type = db.Column(db.String(255))
     amount = db.Column(db.Float)
     description = db.Column(db.String(255))
     date = db.Column(db.DateTime, default=cairo_now)
@@ -213,7 +213,7 @@ class PurchaseOrder(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     date = db.Column(db.DateTime, default=cairo_now)
     total_cost = db.Column(db.Float, default=0.0)
-    status = db.Column(db.String(20), default='received')
+    status = db.Column(db.String(255), default='received')
     supplier = db.relationship('Supplier', backref='orders')
     items = db.relationship('PurchaseItem', backref='purchase_order', lazy=True, cascade="all, delete-orphan")
 
@@ -229,7 +229,7 @@ class PurchaseItem(db.Model):
 class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    phone = db.Column(db.String(20), unique=True, nullable=False)
+    phone = db.Column(db.String(255), unique=True, nullable=False)
     address = db.Column(db.String(200))
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=cairo_now)
@@ -251,8 +251,8 @@ class CustomerPayment(db.Model):
 class ShippingCompany(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    phone = db.Column(db.String(20))
-    cs_number = db.Column(db.String(20))
+    phone = db.Column(db.String(255))
+    cs_number = db.Column(db.String(255))
     fee_first_1k = db.Column(db.Float, default=0.0)
     fee_extra_1k = db.Column(db.Float, default=0.0)
     orders = db.relationship('SaleOrder', backref='courier', lazy=True)
@@ -265,17 +265,17 @@ class SaleOrder(db.Model):
     total_amount = db.Column(db.Float)
     discount = db.Column(db.Float, default=0.0)
     final_total = db.Column(db.Float)
-    sales_rep_code = db.Column(db.String(50))
+    sales_rep_code = db.Column(db.String(255))
     packer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     packer = db.relationship('User', foreign_keys=[packer_id])
     is_shipping = db.Column(db.Boolean, default=False)
     shipping_company_id = db.Column(db.Integer, db.ForeignKey('shipping_company.id'), nullable=True)
     shipping_fee = db.Column(db.Float, default=0.0)
-    shipping_paid_by = db.Column(db.String(20), default='customer')  # 'customer' or 'manager'
+    shipping_paid_by = db.Column(db.String(255), default='customer')  # 'customer' or 'manager'
     paid_upfront = db.Column(db.Float, default=0.0)
     amount_due = db.Column(db.Float, default=0.0)
-    waybill_no = db.Column(db.String(50), nullable=True)
-    shipping_status = db.Column(db.String(20), default='none')
+    waybill_no = db.Column(db.String(255), nullable=True)
+    shipping_status = db.Column(db.String(255), default='none')
     is_proforma = db.Column(db.Boolean, default=False)
     is_reviewed = db.Column(db.Boolean, default=False)
     shipping_notes = db.Column(db.String(255), nullable=True)
@@ -292,7 +292,7 @@ class SaleItem(db.Model):
     variant = db.relationship('ProductVariant')
 class FinancialTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(50), nullable=False)
+    type = db.Column(db.String(255), nullable=False)
     category = db.Column(db.String(100))
     amount = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text)
@@ -312,12 +312,12 @@ class PendingFinancialAction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     target_emp_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    action_type = db.Column(db.String(50), nullable=False)  # advance / bonus / deduction
+    action_type = db.Column(db.String(255), nullable=False)  # advance / bonus / deduction
     amount = db.Column(db.Float, nullable=False)
     account_id = db.Column(db.Integer, db.ForeignKey('money_account.id'), nullable=True)
     note = db.Column(db.Text)
     date = db.Column(db.DateTime, default=datetime.now)
-    status = db.Column(db.String(20), default='pending')  # pending / approved / rejected
+    status = db.Column(db.String(255), default='pending')  # pending / approved / rejected
     reviewed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     reviewed_at = db.Column(db.DateTime, nullable=True)
     reject_reason = db.Column(db.Text, nullable=True)
@@ -341,9 +341,9 @@ class ReturnInvoice(db.Model):
     creator = db.relationship('User')
 class MoneyAccount(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    type = db.Column(db.String(20), default='cash') # cash, vodafone, bank, instapay
-    account_number = db.Column(db.String(50)) # رقم الموبايل أو رقم الحساب
+    name = db.Column(db.String(255), nullable=False)
+    type = db.Column(db.String(255), default='cash') # cash, vodafone, bank, instapay
+    account_number = db.Column(db.String(255)) # رقم الموبايل أو رقم الحساب
     balance = db.Column(db.Float, default=0.0)
 class StockMovement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -358,14 +358,14 @@ class StockMovement(db.Model):
 class HRTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    type = db.Column(db.String(20))
+    type = db.Column(db.String(255))
     amount = db.Column(db.Float)
     date = db.Column(db.DateTime, default=cairo_now)
     note = db.Column(db.String(200))
 
 class ExpenseCategory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(255), unique=True, nullable=False)
 
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
