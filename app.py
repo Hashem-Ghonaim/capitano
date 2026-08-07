@@ -38,6 +38,13 @@ if database_url:
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'erp_crm.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# تحسين أداء الاتصال بقاعدة البيانات في بيئة السيرفرليس (Vercel)
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'pool_timeout': 20,
+}
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static/uploads')
 
 import urllib.request
