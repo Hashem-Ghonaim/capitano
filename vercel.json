@@ -9,7 +9,7 @@
   "routes": [
     {
       "src": "/static/uploads/(.*)",
-      "dest": "https://bhuwcszytzmujtmgvgsj.supabase.co/storage/v1/object/public/uploads/"
+      "dest": "https://bhuwcszytzmujtmgvgsj.supabase.co/storage/v1/object/public/uploads/$1"
     },
     {
       "src": "/(.*)",
