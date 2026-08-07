@@ -19,6 +19,7 @@ def round_half(value):
 
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, cast, Date, text, inspect, or_, event
+from sqlalchemy.pool import NullPool
 import re  # تأكد أن هذا السطر موجود في أول الملف مع الـ imports
 app = Flask(__name__)
 import traceback
@@ -41,9 +42,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # تحسين أداء الاتصال بقاعدة البيانات في بيئة السيرفرليس (Vercel)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-    'pool_timeout': 20,
+    'poolclass': NullPool,
 }
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static/uploads')
 
