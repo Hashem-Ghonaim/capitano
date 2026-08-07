@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>سجل المرتجعات</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .nav-tabs .nav-link { font-weight: bold; color: #495057; }
+        .nav-tabs .nav-link.active { color: #0d6efd; border-bottom: 3px solid #0d6efd; background-color: transparent; border-color: transparent transparent #0d6efd transparent; }
+    </style>
+</head>
+
+<body class="bg-light">
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border-start border-4 border-danger">
+            <h4 class="mb-0 fw-bold"><i class="fas fa-undo text-danger me-2"></i> سجل المرتجعات المجمّع</h4>
+            <div>
+                <a href="/returns/add" class="btn btn-outline-danger btn-sm fw-bold"><i class="fas fa-plus"></i> إضافة إشعار مرتجع</a>
+                <a href="/dashboard" class="btn btn-secondary btn-sm fw-bold"><i class="fas fa-home"></i> الرئيسية</a>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} shadow-sm">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <ul class="nav nav-tabs mb-4 px-2" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="shipping-tab" data-bs-toggle="tab" data-bs-target="#shipping-pane" type="button" role="tab" aria-controls="shipping-pane" aria-selected="true">
+                    <i class="fas fa-truck-fast me-1 text-warning"></i> مرتجعات الشحن ({{ shipping_returns|length if shipping_returns else 0 }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="closed-tab" data-bs-toggle="tab" data-bs-target="#closed-pane" type="button" role="tab" aria-controls="closed-pane" aria-selected="false">
+                    <i class="fas fa-box-open me-1 text-success"></i> فواتير المرتجعات المغلقة ({{ returns|length if returns else 0 }})
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="myTabContent">
+            <!-- تاب مرتجعات الشحن -->
+            <div class="tab-pane fade show active" id="shipping-pane" role="tabpanel" aria-labelledby="shipping-tab" tabindex="0">
+                <div class="card shadow-sm border-0 rounded-4">
+                    <div class="card-body">
+                        {% if shipping_returns %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle text-center">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>الفاتورة</th>
+                                        <th>التاريخ</th>
+                                        <th>العميل</th>
+                                        <th>شركة الشحن</th>
+                                        <th>بوليصة الشحن</th>
+                                        <th>قيمة الفاتورة</th>
+                                        <th>بواسطة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for o in shipping_returns %}
+                                    <tr>
+                                        <td class="fw-bold"><a href="/invoice/print/{{ o.id }}" class="text-decoration-none bg-light px-2 py-1 rounded">#{{ o.id }}</a></td>
+                                        <td><small class="text-muted">{{ o.date.strftime('%Y-%m-%d') }}</small></td>
+                                        <td class="fw-bold">{{ o.customer.name }}</td>
+                                        <td>
+                                            {% if o.shipping_company %}
+                                                <span class="badge bg-primary">{{ o.shipping_company.name }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">غير محدد</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ o.tracking_number or '-' }}</td>
+                                        <td class="fw-bold text-danger">{{ o.final_total }}</td>
+                                        <td><small>{{ o.sales_rep.fullname if o.sales_rep else 'غير محدد' }}</small></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-check-circle fa-3x mb-3 text-success opacity-50"></i>
+                            <h6 class="fw-bold">لا يوجد مرتجعات شحن حالياً</h6>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- تاب فواتير المرتجعات المغلقة -->
+            <div class="tab-pane fade" id="closed-pane" role="tabpanel" aria-labelledby="closed-tab" tabindex="0">
+                <div class="card shadow-sm border-0 rounded-4">
+                    <div class="card-body">
+                        {% if returns %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle text-center">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>رقم المرتجع</th>
+                                        <th>الفاتورة الأصلية</th>
+                                        <th>التاريخ</th>
+                                        <th>إجمالي الخصم (عليك)</th>
+                                        <th>تكلفة بضاعة تالفة</th>
+                                        <th>ملاحظات</th>
+                                        <th>الموظف المستلم</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ret in returns %}
+                                    <tr>
+                                        <td><span class="badge bg-dark">RET-{{ ret.id }}</span></td>
+                                        <td>
+                                            <a href="/invoice/print/{{ ret.order_id }}" class="text-decoration-none fw-bold">#{{ ret.order_id }}</a>
+                                        </td>
+                                        <td><small class="text-muted">{{ ret.date.strftime('%Y-%m-%d') }}</small></td>
+                                        <td class="fw-bold text-danger">{{ ret.total_deduction }}</td>
+                                        <td class="text-warning">{{ ret.missing_items_cost }}</td>
+                                        <td class="small">{{ ret.notes or '-' }}</td>
+                                        <td><small class="text-muted">{{ ret.creator.fullname }}</small></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="fas fa-box-open fa-3x mb-3 opacity-25"></i>
+                            <p>لا يوجد فواتير مرتجع مغلقة حتى الآن.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

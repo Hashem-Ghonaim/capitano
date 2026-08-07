@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>التقارير الشاملة</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: #f4f6f9;
+            font-family: Tahoma, sans-serif;
+        }
+
+        .stat-box {
+            transition: 0.3s;
+        }
+
+        .stat-box:hover {
+            transform: translateY(-5px);
+        }
+
+        .nav-pills .nav-link.active {
+            background-color: #2c3e50;
+        }
+
+        .nav-link {
+            color: #555;
+        }
+
+        tr[data-bs-toggle="collapse"] {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        tr[data-bs-toggle="collapse"]:hover {
+            background-color: #f1f1f1;
+        }
+
+        .filter-box {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+
+    <div class="container-fluid p-4">
+        <div class="d-flex justify-content-between mb-4">
+            <h3><i class="fas fa-chart-line text-primary"></i> مركز التحليلات</h3>
+            <div>
+                <a href="/" class="btn btn-secondary">الرئيسية</a>
+            </div>
+        </div>
+
+        {% if current_user.role == 'general_manager' %}
+        <div class="text-center mb-4">
+            <a href="/partners/report" class="btn btn-dark btn-lg shadow-sm fw-bold">
+                <i class="fas fa-handshake me-2"></i> تقرير تصفية حسابات الشركاء
+            </a>
+        </div>
+        {% endif %}
+
+        <div class="filter-box">
+            <form method="GET" class="row g-3 align-items-end">
+                <input type="hidden" name="type" value="{{ type }}">
+
+                <div class="col-md-3">
+                    <label class="fw-bold small mb-1">من تاريخ</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="fw-bold small mb-1">إلى تاريخ</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">
+                        <i class="fas fa-filter me-1"></i> تصفية
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <ul
+            class="nav nav-pills mb-4 fw-bold bg-white p-2 rounded shadow-sm d-flex justify-content-between flex-wrap gap-2">
+            <li class="nav-item"><a class="nav-link {{ 'active' if type == 'sales' }}"
+                    href="/reports?type=sales&start_date={{ start_date }}&end_date={{ end_date }}"><i
+                        class="fas fa-shopping-cart"></i> المبيعات</a></li>
+            <li class="nav-item"><a class="nav-link {{ 'active' if type == 'finance' }}"
+                    href="/reports?type=finance&start_date={{ start_date }}&end_date={{ end_date }}"><i
+                        class="fas fa-wallet"></i> المالية</a></li>
+            <li class="nav-item"><a class="nav-link {{ 'active' if type == 'inventory' }}"
+                    href="/reports?type=inventory&start_date={{ start_date }}&end_date={{ end_date }}"><i
+                        class="fas fa-boxes"></i> المخزون</a></li>
+
+            <li class="nav-item"><a class="nav-link {{ 'active' if type == 'hr' }}"
+                    href="/reports?type=hr&start_date={{ start_date }}&end_date={{ end_date }}"><i
+                        class="fas fa-users"></i> الموظفين (HR)</a></li>
+            <li class="nav-item"><a class="nav-link {{ 'active' if type == 'crm' }}"
+                    href="/reports?type=crm&start_date={{ start_date }}&end_date={{ end_date }}"><i
+                        class="fas fa-chart-pie"></i> العملاء (CRM)</a></li>
+            <li class="nav-item"><a class="nav-link {{ 'active' if type == 'attendance' }}"
+                    href="/reports?type=attendance&start_date={{ start_date }}&end_date={{ end_date }}"><i
+                        class="fas fa-clock"></i> الحضور</a></li>
+            <li class="nav-item"><a class="nav-link {{ 'active' if type == 'managers' }}"
+                    href="/reports?type=managers&start_date={{ start_date }}&end_date={{ end_date }}"><i
+                        class="fas fa-user-tie"></i> المديرين</a></li>
+            <li class="nav-item"><a class="nav-link {{ 'active' if type == 'product_tracking' }}"
+                    href="/reports?type=product_tracking"><i
+                        class="fas fa-route"></i> تتبع المنتجات</a></li>
+        </ul>
+
+        {% if type == 'sales' %}
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card p-3 bg-primary text-white stat-box h-100">
+                    <h5>إجمالي المبيعات (الفترة)</h5>
+                    <h3>{{ data['total_sales'] }} ج.م</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-secondary text-white stat-box h-100">
+                    <h5>عدد الفواتير</h5>
+                    <h3>{{ data['orders_count'] }}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-warning text-dark stat-box h-100">
+                    <h5>إجمالي الخصومات</h5>
+                    <h3>{{ data['total_discount'] }} ج.م</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-info text-white stat-box h-100">
+                    <h5>مجمل عدد القطع</h5>
+                    <h3>{{ data['total_items_sold'] }} قطعة</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-7">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header fw-bold">الأكثر مبيعاً (Top 10)</div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 text-center">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>المنتج</th>
+                                    <th>الكمية</th>
+                                    <th>الإيراد</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in data['top_products'] %}
+                                <tr>
+                                    <td class="fw-bold">{{ p.name }}</td>
+                                    <td>{{ p.qty }}</td>
+                                    <td class="text-success">{{ p.rev }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-muted">لا توجد مبيعات في هذه الفترة</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card shadow-sm">
+                    <div class="card-header fw-bold text-danger">سجل الخصومات</div>
+                    <table class="table table-hover mb-0 text-center">
+                        <thead class="table-light">
+                            <tr>
+                                <th>رقم الفاتورة</th>
+                                <th>الموظف</th>
+                                <th>الخصم</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for o in data['discount_orders'] %}
+                            <tr>
+                                <td>#{{ o.id }}</td>
+                                <td>{{ o.sales_rep.fullname }}</td>
+                                <td class="text-danger fw-bold">{{ o.discount }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header">الأكثر مبيعاً (Chart)</div>
+                    <div class="card-body"><canvas id="myChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if type == 'finance' %}
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="row text-center g-3">
+                    <div class="col-md-4">
+                        <div class="card p-4 border-success border-top border-4 shadow-sm">
+                            <h5 class="text-muted">إجمالي الربح (Gross)</h5>
+                            <h2 class="text-success fw-bold">{{ data['gross_profit'] }} ج.م</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card p-4 border-danger border-top border-4 shadow-sm">
+                            <h5 class="text-muted">المصروفات (الفترة المحددة)</h5>
+                            <h2 class="text-danger fw-bold">{{ data['total_expenses'] }} ج.م</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card p-4 border-primary border-top border-4 shadow-sm">
+                            <h5 class="text-muted">صافي ربح الشركة</h5>
+                            <h2 class="text-primary fw-bold">{{ data['net_profit'] }} ج.م</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm h-100 border-0">
+                    <div class="card-header bg-dark text-white fw-bold">
+                        <i class="fas fa-list-alt me-2"></i> تفاصيل المصروفات (اضغط للفتح)
+                        <a href="/expenses/details" class="btn btn-warning fw-bold text-dark ms-2">
+                            <i class="fas fa-list-alt"></i> سجل المصروفات التفصيلي
+                        </a>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>نوع المصروف</th>
+                                    <th class="text-center">الإجمالي</th>
+                                    <th class="text-center">النسبة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in data['expenses_by_type'] %}
+                                <tr data-bs-toggle="collapse" data-bs-target="#detail-{{ item.id }}"
+                                    class="fw-bold border-bottom">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded p-2 me-2 text-{{ item.color }} bg-light border">
+                                                <i class="fas fa-{{ item.icon }}"></i>
+                                            </div>
+                                            <span>{{ item.name }} <i
+                                                    class="fas fa-caret-down text-muted small ms-1"></i></span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center fs-5">{{ item.amount }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{{ item.color }}">
+                                            {{ ((item.amount / data['total_expenses']) * 100) | round(1) if
+                                            data['total_expenses'] > 0 else 0 }}%
+                                        </span>
+                                    </td>
+                                </tr>
+
+                                <tr class="collapse bg-light" id="detail-{{ item.id }}">
+                                    <td colspan="3" class="p-0">
+                                        <div class="p-2 border-bottom">
+                                            {% if item.type_groups %}
+                                            <div class="accordion accordion-flush" id="main-acc-{{ item.id }}">
+                                                {% for tg in item.type_groups %}
+                                                <div class="accordion-item bg-transparent border-0 mb-1">
+                                                    <h2 class="accordion-header" id="main-head-{{ tg.id }}">
+                                                        <button class="accordion-button collapsed py-2 px-3 bg-white border border-secondary border-opacity-25 rounded shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#main-body-{{ tg.id }}">
+                                                            <div class="d-flex justify-content-between w-100 me-3 align-items-center">
+                                                                <div>
+                                                                    {% if 'شراكة' in tg.name %}
+                                                                        <span class="badge bg-success shadow-sm me-2"><i class="fas fa-handshake"></i> {{ tg.name }}</span>
+                                                                    {% elif 'مقسم' in tg.name %}
+                                                                        <span class="badge bg-primary shadow-sm me-2"><i class="fas fa-users-cog"></i> {{ tg.name }}</span>
+                                                                    {% elif 'شخصي' in tg.name %}
+                                                                        <span class="badge bg-danger shadow-sm me-2"><i class="fas fa-user-tie"></i> {{ tg.name }}</span>
+                                                                    {% else %}
+                                                                        <span class="badge bg-secondary shadow-sm me-2"><i class="fas fa-file-invoice-dollar"></i> {{ tg.name }}</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <span class="text-secondary fw-bold shadow-sm px-2 py-1 bg-light border rounded">{{ '{:,.2f}'.format(tg.total) }} ج.م</span>
+                                                            </div>
+                                                        </button>
+                                                    </h2>
+                                                    <div id="main-body-{{ tg.id }}" class="accordion-collapse collapse" data-bs-parent="#main-acc-{{ item.id }}">
+                                                        <div class="accordion-body p-2">
+                                                            <div class="table-responsive">
+                                                                <table class="table table-sm table-bordered table-hover mb-0 bg-white">
+                                                                    <thead class="table-dark small">
+                                                                        <tr class="text-center">
+                                                                            <th style="width: 20%">التاريخ</th>
+                                                                            <th style="width: 35%">البيان</th>
+                                                                            <th style="width: 15%">القيمة</th>
+                                                                            <th style="width: 15%">بواسطة</th>
+                                                                            <th style="width: 15%">الخزينة</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody class="small align-middle text-center">
+                                                                        {% for trx in tg.transactions %}
+                                                                        <tr>
+                                                                            <td class="text-muted" style="white-space: nowrap;">{{ trx.date }}</td>
+                                                                            <td class="text-start">{{ trx.desc }}</td>
+                                                                            <td class="fw-bold text-danger">{{ '{:,.2f}'.format(trx.amount) }} ج.م</td>
+                                                                            <td class="text-muted">{{ trx.by }}</td>
+                                                                            <td class="text-muted"><span class="badge bg-light text-dark border shadow-sm">{{ trx.account }}</span></td>
+                                                                        </tr>
+                                                                        {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% else %}
+                                            <p class="text-center text-muted m-0 small pt-2 pb-2">لا توجد حركات.</p>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center py-4">لا توجد مصروفات في هذه الفترة</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm h-100 border-0">
+                    <div class="card-header bg-white fw-bold">
+                        <i class="fas fa-chart-pie me-2"></i> توزيع المصروفات (حسب البند)
+                    </div>
+
+                    <div class="card-body d-flex align-items-center justify-content-center">
+                        <canvas id="myChart" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 mt-4 mb-4">
+                <div class="card shadow-sm border-0 border-top border-warning border-4">
+                    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-chart-bar me-2 text-warning"></i> توزيع مصروفات الخزينة حسب الشخص
+                        </div>
+                        <span class="badge bg-warning text-dark fs-6">{{ '{:,.2f}'.format(data['treasury_total']) }} ج.م</span>
+                    </div>
+                    <div class="card-body">
+                        {% if data['treasury_breakdown'] %}
+                        <div class="row g-4">
+                            {% for cat in data['treasury_breakdown'] %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card border-0 shadow-sm h-100">
+                                    <div class="card-header bg-light fw-bold d-flex justify-content-between align-items-center border-bottom-0">
+                                        <span><i class="fas fa-tags me-1 text-primary"></i> {{ cat.name }}</span>
+                                        <span class="badge bg-danger">{{ '{:,.2f}'.format(cat.total) }} ج.م</span>
+                                    </div>
+                                    <div class="card-body pt-0">
+                                        <canvas id="treasuryChart_{{ cat.id }}" height="180"></canvas>
+                                        <hr class="my-2">
+                                        <div class="list-group list-group-flush small">
+                                            {% for p in cat.persons %}
+                                            <div class="list-group-item px-0 py-2 border-0">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <span class="fw-bold"><i class="fas fa-user-circle me-1 text-muted"></i>{{ p.name }}</span>
+                                                    <div>
+                                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 me-1">{{ '{:,.2f}'.format(p.total) }} ج.م</span>
+                                                        <span class="badge bg-secondary">{{ p.percentage }}%</span>
+                                                    </div>
+                                                </div>
+                                                <div class="progress" style="height: 5px;">
+                                                    <div class="progress-bar bg-primary" style="width: {{ p.percentage }}%"></div>
+                                                </div>
+                                                {% if p.transactions|length > 0 %}
+                                                <div class="mt-1">
+                                                    <a class="text-muted small text-decoration-none" data-bs-toggle="collapse" href="#trxDetail_{{ p.id }}">
+                                                        <i class="fas fa-list-ul me-1"></i>عرض التفاصيل ({{ p.transactions|length }})
+                                                    </a>
+                                                    <div class="collapse mt-1" id="trxDetail_{{ p.id }}">
+                                                        <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                                            <table class="table table-sm table-bordered mb-0 small">
+                                                                <thead class="table-light">
+                                                                    <tr class="text-center">
+                                                                        <th>التاريخ</th>
+                                                                        <th>البيان</th>
+                                                                        <th>المبلغ</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {% for trx in p.transactions %}
+                                                                    <tr>
+                                                                        <td class="text-muted text-nowrap">{{ trx.date }}</td>
+                                                                        <td>{{ trx.desc }}</td>
+                                                                        <td class="text-danger fw-bold text-nowrap">{{ '{:,.2f}'.format(trx.amount) }}</td>
+                                                                    </tr>
+                                                                    {% endfor %}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-center text-muted py-4 mb-0">لا توجد مصروفات خزينة في هذه الفترة</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if type == 'inventory' %}
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="alert alert-info shadow-sm">
+                    <i class="fas fa-info-circle me-2"></i> تقرير المخزون يعرض الوضع الحالي لحظياً (لا يتأثر بفلتر
+                    التاريخ).
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="card p-3 border-primary border-top border-4 shadow-sm h-100">
+                    <h6 class="text-muted">قيمة المخزون (تكلفة)</h6>
+                    <h3 class="text-primary fw-bold">{{ data['total_cost_value'] }} ج.م</h3>
+                    <small class="text-muted">رأس المال المركون بضاعة</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card p-3 border-success border-top border-4 shadow-sm h-100">
+                    <h6 class="text-muted">قيمة المخزون (بيع)</h6>
+                    <h3 class="text-success fw-bold">{{ data['total_sell_value'] }} ج.م</h3>
+                    <small class="text-success">أرباح متوقعة: {{ data['expected_profit'] }} ج.م</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card p-3 border-warning border-top border-4 shadow-sm h-100">
+                    <h6 class="text-muted">إجمالي عدد القطع</h6>
+                    <h3 class="text-warning fw-bold">{{ data['total_items'] }}</h3>
+                    <small class="text-muted">قطعة في المخزن</small>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card p-3 border-danger border-top border-4 shadow-sm h-100">
+                    <h6 class="text-muted">نواقص ونفذت</h6>
+                    <h3 class="text-danger fw-bold">{{ data['out_of_stock_count'] }}</h3>
+                    <small class="text-danger">أصناف رصيدها صفر</small>
+                </div>
+            </div>
+
+            <div class="col-md-8 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white fw-bold">أكثر المنتجات توفراً بالمخزن (Top 10)</div>
+                    <div class="card-body">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm h-100 border-0">
+                    <div
+                        class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-exclamation-triangle me-2"></i> نواقص ونفذت (أقل من 5)</span>
+                        <span class="badge bg-white text-danger">{{ data['low_stock_items']|length }} صنف</span>
+                    </div>
+                    <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-hover mb-0 text-center small align-middle">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>المنتج</th>
+                                    <th>الرصيد</th>
+                                    <th>الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in data['low_stock_items'] %}
+                                <tr>
+                                    <td class="text-start fw-bold">{{ p[0] }}</td>
+                                    <td class="fw-bold fs-6" style="direction: ltr;">
+                                        {% if p[1] <= 0 %} <span class="text-danger">{{ p[1] }}</span>
+                                            {% else %}
+                                            <span class="text-warning text-dark">{{ p[1] }}</span>
+                                            {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if p[1] <= 0 %} <span class="badge bg-danger">نفذت الكمية</span>
+                                            {% else %}
+                                            <span class="badge bg-warning text-dark">يطلب قريباً</span>
+                                            {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-muted py-4">المخزون ممتاز، لا يوجد نواقص ✅</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer bg-white border-0 text-center">
+                        <a href="/purchases/new" class="btn btn-outline-danger btn-sm w-100 fw-bold">
+                            <i class="fas fa-cart-plus"></i> إنشاء طلبية شراء للنواقص
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+        {% if type == 'hr' %}
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-dark text-white fw-bold"><i class="fas fa-user-tie"></i> تقرير أداء
+                        الموظفين (في الفترة المحددة)</div>
+                    <table class="table table-hover align-middle text-center mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>الموظف</th>
+                                <th>الدور</th>
+                                <th>مبيعاته</th>
+                                <th>فواتير</th>
+                                <th>عدد القطع</th>
+                                <th>عمولة تقديرية</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for emp in data['hr_report'] %}
+                            <tr>
+                                <td class="fw-bold">{{ emp.name }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ emp.role }}</span></td>
+                                <td class="text-success fw-bold">{{ emp.sales }} ج.م</td>
+                                <td>{{ emp.orders }}</td>
+                                <td><span class="badge bg-info text-dark fs-6">{{ emp.items_count }}</span></td>
+                                <td class="text-primary fw-bold">{{ emp.commission }} ج.م</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="alert alert-warning">يتم حساب العمولة بناءً على مبيعات الفترة المحددة في الفلتر.</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if type == 'crm' %}
+        <div class="row">
+            <div class="col-md-3 mb-4">
+                <div class="card p-3 bg-info text-white stat-box mb-3">
+                    <h5>عملاء جدد (في الفترة)</h5>
+                    <h2>{{ data['new_customers'] }} <i class="fas fa-user-plus"></i></h2>
+                </div>
+                <div class="card shadow-sm h-100">
+                    <div class="card-header">أفضل العملاء (إنفاقاً في الفترة)</div>
+                    <div class="card-body"><canvas id="myChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="col-md-5 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header fw-bold text-warning"><i class="fas fa-star"></i> قائمة العملاء VIP (Top 10)
+                    </div>
+                    <table class="table table-hover text-center mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>العميل</th>
+                                <th>زيارات</th>
+                                <th>إجمالي إنفاق</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in data['top_customers'] %}
+                            <tr>
+                                <td class="fw-bold">{{ c.name }}</td>
+                                <td>{{ c.visits }}</td>
+                                <td class="text-success fw-bold">{{ c.spent }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-muted">لا يوجد بيانات للفترة</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-purple text-dark fw-bold" style="background:#e0ccff"><i
+                            class="fas fa-magic"></i> منتجات تباع معاً غالباً</div>
+                    <div class="card-body p-0">
+                        <table class="table table-striped mb-0 text-center" style="font-size: 0.9em;">
+                            <thead>
+                                <tr>
+                                    <th>المنتج 1</th>
+                                    <th>+</th>
+                                    <th>المنتج 2</th>
+                                    <th>تكرار</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in data['market_basket'] %}
+                                <tr>
+                                    <td>{{ row.p1_name }}</td>
+                                    <td><i class="fas fa-plus text-muted"></i></td>
+                                    <td>{{ row.p2_name }}</td>
+                                    <td class="fw-bold text-primary">{{ row.frequency }} مرة</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-muted p-3">لا توجد بيانات كافية للتحليل</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if type == 'attendance' %}
+        <div class="row mb-4 text-center">
+            <div class="col-md-4">
+                <div class="card p-3 bg-primary text-white shadow-sm h-100">
+                    <h6 class="small fw-bold">إجمالي أيام الحضور</h6>
+                    <h3>{{ data['stats']['total_present'] }} يوم</h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 bg-warning text-dark shadow-sm h-100">
+                    <h6 class="small fw-bold">حالات التأخير/الانصراف المبكر</h6>
+                    <h3>{{ data['stats']['total_late'] }} مرة</h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-3 bg-success text-white shadow-sm h-100">
+                    <h6 class="small fw-bold">إجمالي ساعات العمل الفعلي</h6>
+                    <h3>{{ data['stats']['total_hours'] }} ساعة</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center py-3">
+                <span><i class="fas fa-user-clock me-2 text-primary"></i> تحليل سجل الحضور التفصيلي</span>
+                <span class="badge bg-light text-dark border p-2">{{ start_date }} ⮕ {{ end_date }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle text-center mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>الموظف</th>
+                            <th>الحالة الدقيقة</th>
+                            <th>وقت الحضور</th>
+                            <th>وقت الانصراف</th>
+                            <th>ساعات العمل</th>
+                            {% if current_user.role == 'general_manager' %}<th>تعديل</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in data['records'] %}
+                        {% set late = False %}
+                        {% set early = False %}
+
+                        {# حساب حالة التأخير (أكثر من 15 دقيقة) #}
+                        {% if r.check_in and r.user_shift_start %}
+                        {# تحويل الوقت لدقائق للمقارنة #}
+                        {% set shift_h = r.user_shift_start.split(':')[0]|int %}
+                        {% set shift_m = r.user_shift_start.split(':')[1]|int %}
+                        {% set check_h = r.check_in.hour %}
+                        {% set check_m = r.check_in.minute %}
+                        {% if (check_h * 60 + check_m) > (shift_h * 60 + shift_m + 15) %} {% set late = True %} {% endif
+                        %}
+                        {% endif %}
+
+                        {# حساب الانصراف المبكر (ولو بدقيقة) - أو لو مسجلش انصراف أصلاً #}
+                        {% if not r.check_out and r.check_in and r.status != 'absent' %}
+                        {% set early = True %}
+                        {% elif r.check_out and r.user_shift_end %}
+                        {% set end_h = r.user_shift_end.split(':')[0]|int %}
+                        {% set end_m = r.user_shift_end.split(':')[1]|int %}
+                        {% set out_h = r.check_out.hour %}
+                        {% set out_m = r.check_out.minute %}
+                        {% if (out_h * 60 + out_m) < (end_h * 60 + end_m) %} {% set early=True %} {% endif %} {% endif
+                            %} <tr>
+                            <td class="small">{{ r.date.strftime('%Y-%m-%d') }}</td>
+                            <td class="fw-bold">{{ r.user }}</td>
+                            <td>
+                                {% if r.status == 'absent' %}
+                                <span class="badge bg-danger p-2">لم يحضر {% if r.is_excused %}(بإذن){% endif %}</span>
+                                {% elif not late and not early %}
+                                <span class="badge bg-success p-2">1- حضر وانصرف في موعده</span>
+                                {% elif not late and early %}
+                                <span class="badge bg-warning text-dark p-2">2- حضر في موعده وانصرف مبكراً</span>
+                                {% elif late and not early %}
+                                <span class="badge bg-info text-dark p-2">3- حضر متأخراً وانصرف في موعده</span>
+                                {% elif late and early %}
+                                <span class="badge bg-secondary p-2">4- حضر متأخراً وانصرف مبكراً</span>
+                                {% endif %}
+                            </td>
+                            <td class="{{ 'text-danger fw-bold' if late else 'text-success' }}">
+                                {{ r.check_in.strftime('%I:%M %p') if r.check_in else '-' }}
+                            </td>
+                            <td class="{{ 'text-danger fw-bold' if early else 'text-success' }}">
+                                {{ r.check_out.strftime('%I:%M %p') if r.check_out else '-' }}
+                            </td>
+                            <td class="fw-bold">{{ r.work_hours }}</td>
+                            {% if current_user.role == 'general_manager' %}
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary"
+                                    onclick="openEditAttendance({{ r.id }}, '{{ r.user }}', '{{ r.date.strftime('%Y-%m-%d') }}', '{{ r.check_in.strftime('%Y-%m-%dT%H:%M') if r.check_in else '' }}', '{{ r.check_out.strftime('%Y-%m-%dT%H:%M') if r.check_out else '' }}', '{{ r.status }}')"><i
+                                        class="fas fa-edit"></i></button>
+                            </td>
+                            {% endif %}
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="py-5 text-muted">لا توجد سجلات في هذه الفترة</td>
+                            </tr>
+                            {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Edit Attendance Modal -->
+        {% if current_user.role == 'general_manager' %}
+        <div class="modal fade" id="editAttendanceModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>تعديل سجل الحضور</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="edit_att_id">
+                        <div class="mb-3">
+                            <label class="fw-bold small">الموظف</label>
+                            <input type="text" id="edit_att_user" class="form-control" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold small">التاريخ</label>
+                            <input type="text" id="edit_att_date" class="form-control" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold small">وقت الحضور</label>
+                            <input type="datetime-local" id="edit_att_checkin" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold small">وقت الانصراف</label>
+                            <input type="datetime-local" id="edit_att_checkout" class="form-control">
+                            <small class="text-muted">اتركه فارغ لو مفيش انصراف</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold small">الحالة</label>
+                            <select id="edit_att_status" class="form-select">
+                                <option value="present">حاضر</option>
+                                <option value="late">متأخر</option>
+                                <option value="absent">غائب</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="button" class="btn btn-primary fw-bold" onclick="saveEditAttendance()"><i
+                                class="fas fa-save me-1"></i>حفظ التعديل</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function openEditAttendance(id, user, dateStr, checkIn, checkOut, status) {
+                document.getElementById('edit_att_id').value = id;
+                document.getElementById('edit_att_user').value = user;
+                document.getElementById('edit_att_date').value = dateStr;
+                document.getElementById('edit_att_checkin').value = checkIn;
+                document.getElementById('edit_att_checkout').value = checkOut;
+                document.getElementById('edit_att_status').value = status;
+                new bootstrap.Modal(document.getElementById('editAttendanceModal')).show();
+            }
+
+            function saveEditAttendance() {
+                const id = document.getElementById('edit_att_id').value;
+                const checkIn = document.getElementById('edit_att_checkin').value;
+                const checkOut = document.getElementById('edit_att_checkout').value;
+                const status = document.getElementById('edit_att_status').value;
+
+                fetch('/api/attendance/edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: parseInt(id), check_in: checkIn, check_out: checkOut, status: status })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.success);
+                            location.reload();
+                        } else {
+                            alert(data.error || 'حدث خطأ');
+                        }
+                    })
+                    .catch(err => alert('خطأ في الاتصال'));
+            }
+        </script>
+        {% endif %}
+
+        {% endif %}
+
+        {% if type == 'managers' %}
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card p-3 bg-info text-white stat-box h-100">
+                    <h5>إجمالي القطع المباعة</h5>
+                    <h3>{{ data['grand_total_items'] }} قطعة</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-success text-white stat-box h-100">
+                    <h5>إجمالي ربح الشركة</h5>
+                    <h3>{{ data['grand_total_profit'] }} ج.م</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-warning text-dark stat-box h-100">
+                    <h5>إجمالي العمولات</h5>
+                    <h3>{{ data['grand_total_comm'] }} ج.م</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 bg-primary text-white stat-box h-100">
+                    <h5>صافي ربح الشركة</h5>
+                    <h3>{{ data['grand_total_net'] }} ج.م</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-dark text-white fw-bold">
+                        <i class="fas fa-user-tie me-2"></i> أداء المديرين (مرتب حسب الأعلى ربحاً للشركة)
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle text-center mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>المدير</th>
+                                    <th>عدد القطع</th>
+                                    <th>ربح الشركة (إجمالي)</th>
+                                    <th>العمولات (14ج/قطعة)</th>
+                                    <th>صافي ربح الشركة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in data['managers_report'] %}
+                                <tr>
+                                    <td><span class="badge bg-dark">{{ loop.index }}</span></td>
+                                    <td class="fw-bold">{{ m.name }}</td>
+                                    <td><span class="badge bg-info text-dark fs-6">{{ m.items_sold }}</span></td>
+                                    <td class="text-success fw-bold fs-6">{{ '{:,.2f}'.format(m.company_profit) }}</td>
+                                    <td class="text-warning fw-bold fs-6">{{ '{:,.2f}'.format(m.commissions) }}</td>
+                                    <td
+                                        class="fw-bold fs-5 {{ 'text-success' if m.net_profit >= 0 else 'text-danger' }}">
+                                        {{ '{:,.2f}'.format(m.net_profit) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-muted py-4">لا يوجد مديرين</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-dark">
+                                <tr class="fw-bold">
+                                    <td colspan="2">الإجمالي</td>
+                                    <td>{{ data['grand_total_items'] }}</td>
+                                    <td class="text-success">{{ '{:,.2f}'.format(data['grand_total_profit']) }}</td>
+                                    <td class="text-warning">{{ '{:,.2f}'.format(data['grand_total_comm']) }}</td>
+                                    <td class="fs-5">{{ '{:,.2f}'.format(data['grand_total_net']) }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header fw-bold">صافي ربح الشركة من كل مدير</div>
+                    <div class="card-body"><canvas id="myChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if type == 'product_tracking' %}
+        <div class="row">
+            <div class="col-12 mb-3">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-route me-2"></i> تتبع خط سير المنتجات</span>
+                        <span class="badge bg-light text-dark">{{ data.get('all_variants', [])|length }} منتج</span>
+                    </div>
+                    <div class="card-body p-3">
+                        <input type="text" id="productSearch" class="form-control form-control-lg mb-3" 
+                            placeholder="🔍 ابحث بالكود أو اسم المنتج أو الباركود..." onkeyup="filterProducts()">
+                        
+                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                            <table class="table table-hover align-middle text-center mb-0" id="productsTable">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>كود</th>
+                                        <th>اسم المنتج</th>
+                                        <th>التصنيف</th>
+                                        <th>المخزون</th>
+                                        <th>سعر البيع</th>
+                                        <th>الملف الشخصي</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for v in data.get('all_variants', []) %}
+                                    <tr class="product-row">
+                                        <td class="fw-bold text-muted">{{ v.id }}</td>
+                                        <td class="fw-bold">{{ v.name }}</td>
+                                        <td><span class="badge bg-light text-dark border">{{ v.category }}</span></td>
+                                        <td>
+                                            <span class="badge {{ 'bg-success' if v.stock > 0 else 'bg-danger' }} fs-6">{{ v.stock }}</span>
+                                        </td>
+                                        <td class="fw-bold text-success">{{ '{:,.0f}'.format(v.sell) }} ج.م</td>
+                                        <td>
+                                            <a href="/product/{{ v.id }}/profile" class="btn btn-primary btn-sm fw-bold">
+                                                <i class="fas fa-route me-1"></i> تتبع
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-muted py-4">لا توجد منتجات</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function filterProducts() {
+                const filter = document.getElementById('productSearch').value.toUpperCase();
+                const rows = document.querySelectorAll('#productsTable .product-row');
+                rows.forEach(row => {
+                    const text = row.textContent.toUpperCase();
+                    row.style.display = text.includes(filter) ? '' : 'none';
+                });
+            }
+        </script>
+        {% endif %}
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const ctx = document.getElementById('myChart');
+        {% if chart and chart['values'] %}
+        if (ctx) {
+            new Chart(ctx, {
+                type: {{ chart['type'] | tojson }},
+                data: {
+                    labels: {{ chart['labels'] | tojson }},
+                    datasets: [{
+                        label: 'البيانات',
+                        data: {{ chart['values'] | tojson }},
+                        backgroundColor: [
+                            '#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6',
+                            '#34495e', '#e67e22', '#1abc9c', '#95a5a6', '#d35400'
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: '{{ "y" if type == "inventory" else "x" }}',
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+        {% endif %}
+
+        {% if type == 'finance' and data.get('treasury_breakdown') %}
+        const treasuryColors = [
+            '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+            '#1abc9c', '#e67e22', '#34495e', '#d35400', '#16a085',
+            '#c0392b', '#2980b9', '#8e44ad', '#27ae60', '#f1c40f'
+        ];
+        
+        {% for cat in data['treasury_breakdown'] %}
+        (function() {
+            const canvas = document.getElementById('treasuryChart_{{ cat.id }}');
+            if (canvas) {
+                new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: {{ cat.person_labels | tojson }},
+                        datasets: [{
+                            data: {{ cat.person_values | tojson }},
+                            backgroundColor: treasuryColors.slice(0, {{ cat.persons|length }}),
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        cutout: '55%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { 
+                                    font: { size: 11 },
+                                    padding: 10,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let val = context.parsed;
+                                        let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        let pct = ((val / total) * 100).toFixed(1);
+                                        return context.label + ': ' + val.toLocaleString() + ' ج.م (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+        {% endfor %}
+        {% endif %}
+    </script>
+
+</body>
+
+</html>

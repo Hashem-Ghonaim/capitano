@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'سجل عروض الأسعار' if is_proforma_view else 'سجل الفواتير التامة' }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4361ee;
+        }
+
+        body {
+            background-color: #f3f4f6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .page-header {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        }
+
+        .table-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+            border: none;
+        }
+
+        .nav-pills .nav-link.active {
+            font-weight: bold;
+        }
+
+        .nav-pills .nav-link {
+            color: #555;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+
+        /* لون مختلف للتاب النشط حسب النوع */
+        .btn-check:checked+.btn-outline-success,
+        .btn-check:active+.btn-outline-success,
+        .btn-outline-success.active,
+        .btn-outline-success.dropdown-toggle.show,
+        .btn-outline-success:active {
+            background-color: #198754;
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="p-4">
+
+    <div class="container-fluid">
+
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center w-100">
+                <div>
+                    <h3 class="fw-bold m-0 text-primary">
+                        <i class="fas {{ 'fa-file-signature' if is_proforma_view else 'fa-file-invoice-dollar' }}"></i>
+                        {{ 'سجل عروض الأسعار (المسودات)' if is_proforma_view else 'سجل الفواتير التامة' }}
+                    </h3>
+                    <p class="text-muted m-0 small">عدد السجلات: {{ orders|length }}</p>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <a href="/dashboard" class="btn btn-outline-secondary">الرئيسية</a>
+                    <a href="/pos" class="btn btn-primary fw-bold">+ فاتورة جديدة</a>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex justify-content-center align-items-center flex-wrap gap-3">
+                <div class="btn-group" role="group">
+                    <a href="/invoices{{ '?user_id=' + selected_user_id|string if selected_user_id else '' }}"
+                        class="btn {{ 'btn-success active' if not is_proforma_view else 'btn-outline-success' }} px-4 fw-bold">
+                        <i class="fas fa-check-circle me-1"></i> فواتير تامة
+                    </a>
+                    <a href="/invoices?type=proforma{{ '&user_id=' + selected_user_id|string if selected_user_id else '' }}"
+                        class="btn {{ 'btn-warning active text-dark' if is_proforma_view else 'btn-outline-warning text-dark' }} px-4 fw-bold">
+                        <i class="fas fa-edit me-1"></i> عروض أسعار / مسودات
+                    </a>
+                </div>
+
+                <!-- فلتر شامل (موظفين + تواريخ) -->
+                <form action="/invoices" method="get"
+                    class="d-flex align-items-center bg-light p-2 rounded border gap-2 flex-wrap">
+                    {% if is_proforma_view %}
+                    <input type="hidden" name="type" value="proforma">
+                    {% endif %}
+
+                    {% if accessible_users and accessible_users|length > 1 %}
+                    <div>
+                        <label class="fw-bold text-secondary small d-block">الموظف:</label>
+                        <select name="user_id" class="form-select form-select-sm" style="width: 150px;">
+                            <option value="">-- الكل --</option>
+                            {% for u in accessible_users %}
+                            <option value="{{ u.id }}" {{ 'selected' if selected_user_id==u.id else '' }}>{{ u.fullname
+                                }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div>
+                        <label class="fw-bold text-secondary small d-block">من:</label>
+                        <input type="date" name="start_date" value="{{ start_date if start_date else '' }}"
+                            class="form-control form-control-sm">
+                    </div>
+
+                    <div>
+                        <label class="fw-bold text-secondary small d-block">إلى:</label>
+                        <input type="date" name="end_date" value="{{ end_date if end_date else '' }}"
+                            class="form-control form-control-sm">
+                    </div>
+
+                    <div class="align-self-end">
+                        <button type="submit" class="btn btn-sm btn-primary fw-bold">
+                            <i class="fas fa-filter"></i> تصفية
+                        </button>
+                        <a href="/invoices{{ '?type=proforma' if is_proforma_view else '' }}"
+                            class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-undo"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="alert-area"></div>
+
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle text-center">
+                <thead class="{{ 'table-warning' if is_proforma_view else 'table-light' }}">
+                    <tr>
+                        <th>#ID</th>
+                        <th>التاريخ</th>
+                        <th>العميل</th>
+                        <th>البائع</th>
+                        <th>العدد</th>
+                        <th>الإجمالي</th>
+                        {% if is_gm %}
+                        <th class="bg-danger bg-opacity-10 text-danger">التكلفة</th>
+                        <th class="bg-success bg-opacity-10 text-success">الربح</th>
+                        {% endif %}
+                        <th>الحالة</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr id="row-{{ order.id }}">
+                        <td class="fw-bold">#{{ order.id }}</td>
+                        <td class="small">{{ order.date.strftime('%Y-%m-%d %I:%M %p') }}</td>
+                        <td>{{ order.customer.name if order.customer else 'عميل نقدي' }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ order.sales_rep.fullname }}</span></td>
+                        <td class="fw-bold">{{ order.items|sum(attribute='quantity') }}</td>
+                        <td class="fw-bold text-primary">{{ order.final_total }}</td>
+
+                        {% if is_gm %}
+                        <td class="text-danger small">{{ order.real_cost }}</td>
+                        <td class="text-success fw-bold">{{ order.gross_profit }}</td>
+                        {% endif %}
+
+                        <td>
+                            {% if order.is_proforma %}
+                            <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> مسودة</span>
+                            {% else %}
+                            <span class="badge bg-success"><i class="fas fa-check"></i> تامة</span>
+                            {% if order.is_shipping %}
+                            <span class="badge bg-info text-dark">شحن</span>
+                            {% endif %}
+                            {% if order.return_invoices and order.return_invoices|length > 0 %}
+                            <span class="badge bg-danger mt-1 d-block"><i class="fas fa-undo"></i> بها مرتجع ({{ order.return_invoices|length }})</span>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-1 justify-content-center">
+                                <a href="/invoice/print/{{ order.id }}" class="btn btn-sm btn-outline-dark"
+                                    title="طباعة" style="min-width: 40px;">
+                                    <i class="fas fa-print"></i>
+                                </a>
+
+                                {% if order.is_proforma %}
+                                <a href="/invoice/edit_proforma/{{ order.id }}" class="btn btn-sm btn-outline-primary"
+                                    title="تعديل">
+                                    <i class="fas fa-pen"></i>
+                                </a>
+                                <a href="/invoice/convert/{{ order.id }}" class="btn btn-sm btn-outline-success fw-bold"
+                                    title="اعتماد وتحويل لفاتورة"
+                                    onclick="return confirm('هل أنت متأكد من اعتماد عرض السعر وتحويله لفاتورة؟ سيتم خصم الكميات من المخزن.')">
+                                    <i class="fas fa-check"></i> اعتماد
+                                </a>
+                                {% else %}
+                                {% if current_user.role in ['general_manager', 'manager'] %}
+                                {% set gross_q = order.items|sum(attribute='quantity') %}
+                                {% set ret_q = order.return_invoices|sum(attribute='total_qty') if order.return_invoices else 0 %}
+                                {% if ret_q < gross_q %}
+                                <a href="/returns/add?order_id={{ order.id }}"
+                                    class="btn btn-sm btn-outline-warning text-dark fw-bold"
+                                    title="تسجيل مرتجع لهذه الفاتورة">
+                                    <i class="fas fa-undo"></i> مرتجع
+                                </a>
+                                {% endif %}
+                                {% endif %}
+                                {% endif %}
+
+                                {% if current_user.role in ['general_manager', 'manager'] or
+                                current_user.has_perm('manage_orders') %}
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteInvoice({{ order.id }})"
+                                    title="حذف" style="min-width: 40px;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="py-5 text-muted">
+                            <i class="fas fa-folder-open fa-3x mb-3"></i>
+                            <p>لا توجد بيانات للعرض في هذا القسم</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if is_gm and orders %}
+                <tfoot class="table-dark">
+                    <tr>
+                    <tr>
+                        <td colspan="4" class="fw-bold text-end">الإجماليات للقسم الحالي:</td>
+                        <td class="fw-bold">{{ grand_totals.total_items }}</td>
+                        <td class="fw-bold">{{ grand_totals.total_sell }}</td>
+                        <td>{{ grand_totals.total_cost }}</td>
+                        <td>{{ grand_totals.total_profit }}</td>
+                        <td colspan="2">صافي الشركة: {{ grand_totals.total_company_net }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function deleteInvoice(orderId) {
+            if (!confirm('هل أنت متأكد من حذف هذه الفاتورة نهائياً؟ سيتم استرجاع الكميات للمخزن.')) return;
+
+            fetch(`/invoice/delete/${orderId}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', data.message);
+                        const row = document.getElementById('row-' + orderId);
+                        if (row) {
+                            row.style.transition = 'all 0.5s';
+                            row.style.opacity = '0';
+                            setTimeout(() => row.remove(), 500);
+                        }
+                    } else {
+                        showAlert('danger', '❌ خطأ: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('danger', 'حدث خطأ في الاتصال بالسيرفر');
+                });
+        }
+
+        function showAlert(type, message) {
+            const alertArea = document.getElementById('alert-area');
+            alertArea.innerHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show shadow-sm border-0" role=\"alert\">
+                <strong>${type === 'success' ? 'تم بنجاح!' : 'تنبيه!'}</strong> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+            setTimeout(() => {
+                const alertEl = document.querySelector('.alert');
+                if (alertEl) {
+                    const alert = bootstrap.Alert.getOrCreateInstance(alertEl);
+                    alert.close();
+                }
+            }, 3000);
+        }
+    </script>
+
+</body>
+
+</html>

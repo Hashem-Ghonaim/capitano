@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مراجعة فواتير اليوم</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        .review-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .day-header { background-color: #343a40; color: white; padding: 10px 20px; border-radius: 8px; margin-top: 30px; margin-bottom: 15px; font-weight: bold; }
+        .action-btn { width: 140px; margin-bottom: 5px; }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold"><i class="fas fa-search-dollar text-primary"></i> مراجعة فواتير اليوم</h3>
+            <a href="/dashboard" class="btn btn-secondary">الرئيسية</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm rounded-3">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Filter Area -->
+        <div class="card review-card mb-4">
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="small fw-bold text-muted">نوع الفاتورة</label>
+                        <select id="typeFilter" class="form-select" onchange="filterInvoices()">
+                            <option value="all">-- عرض الكل --</option>
+                            <option value="direct">فواتير بيع مباشر (بدون شحن)</option>
+                            <option value="shipping">فواتير شحن</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="small fw-bold text-muted">تصفية حسب الموظف</label>
+                        <select id="userFilter" class="form-select" onchange="filterInvoices()">
+                            <option value="all">-- عرض الكل --</option>
+                            {% for u in users %}
+                                <option value="{{ u.id }}">{{ u.fullname }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="small fw-bold text-muted">بحث برقم الفاتورة</label>
+                        <input type="text" id="idFilter" class="form-control" placeholder="رقم الفاتورة..." onkeyup="filterInvoices()">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if not orders %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-check-circle fa-4x text-success mb-3 opacity-50"></i>
+            <h4>لا توجد فواتير معلقة للمراجعة!</h4>
+            <p>تمت مراجعة جميع فواتير اليوم بنجاح.</p>
+        </div>
+        {% else %}
+            
+            {% set current_day = namespace(value='') %}
+            {% for order in orders %}
+                {% set order_day = order.date.strftime('%Y-%m-%d') %}
+                
+                {% if order_day != current_day.value %}
+                    {% set current_day.value = order_day %}
+                    <div class="day-header d-flex justify-content-between invoice-day-row">
+                        <span><i class="fas fa-calendar-alt"></i> تاريخ: {{ order_day }}</span>
+                    </div>
+                {% endif %}
+
+                <div class="card review-card invoice-row" data-userid="{{ order.user_id }}" data-orderid="{{ order.id }}" data-invoicetype="{{ 'shipping' if order.is_shipping else 'direct' }}">
+                    <div class="card-body py-3">
+                        <div class="row align-items-center">
+                            <div class="col-md-1">
+                                <h5 class="fw-bold m-0 w-100 text-center"><a href="/invoice/print/{{ order.id }}" target="_blank" class="text-decoration-none text-dark">#{{ order.id }}</a></h5>
+                            </div>
+                            <div class="col-md-2">
+                                <span class="d-block small text-muted">الموظف</span>
+                                <span class="fw-bold">{{ order.sales_rep.fullname if order.sales_rep else 'غير محدد' }}</span>
+                            </div>
+                            <div class="col-md-2">
+                                <span class="d-block small text-muted">العميل</span>
+                                <span class="fw-bold text-truncate d-block" style="max-width: 150px;" title="{{ order.customer.name if order.customer else 'بدون' }}">{{ order.customer.name if order.customer else 'بدون عميل' }}</span>
+                            </div>
+                            <div class="col-md-2">
+                                <span class="d-block small text-muted">إجمالي الفاتورة</span>
+                                <span class="fw-bold text-success fs-5">{{ order.final_total }} ج.م</span>
+                                <br><small class="text-muted">(خصم: {{ order.discount }} ج.م)</small>
+                            </div>
+                            <div class="col-md-3">
+                                <span class="d-block small text-muted">الشحن / الدفع</span>
+                                {% if order.is_shipping %}
+                                    <span class="badge bg-info text-dark">شحن</span> ({{ order.paid_upfront }} ج.م محصل)
+                                {% else %}
+                                    <span class="badge bg-success">مباشر</span>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-2 text-md-end text-center mt-3 mt-md-0">
+                                <div class="d-flex flex-column align-items-md-end align-items-center">
+                                    <form action="/review_invoices/confirm/{{ order.id }}" method="POST" class="d-inline mb-2 w-100">
+                                        <button type="submit" class="btn btn-success action-btn"><i class="fas fa-check-double"></i> تأكيد (سليمة)</button>
+                                    </form>
+                                    
+                                    {% if current_user.has_perm('revert_to_proforma') %}
+                                    <form action="/invoice/{{ order.id }}/revert_to_proforma" method="POST" class="d-inline w-100" onsubmit="return confirm('تأكيد إرجاع الفاتورة لمسودة؟ (سيتم عكس الخزنة والمخزون)')">
+                                        <button type="submit" class="btn btn-outline-danger action-btn"><i class="fas fa-undo"></i> إرجاع (فيها غلط)</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Load saved filter states
+                    const savedType = sessionStorage.getItem('reviewFilterType');
+                    const savedUser = sessionStorage.getItem('reviewFilterUser');
+                    const savedId = sessionStorage.getItem('reviewFilterId');
+                    
+                    if (savedType) document.getElementById('typeFilter').value = savedType;
+                    if (savedUser) document.getElementById('userFilter').value = savedUser;
+                    if (savedId) document.getElementById('idFilter').value = savedId;
+                    
+                    // Apply filters immediately if any was changed
+                    if (savedType || savedUser || savedId) {
+                        filterInvoices();
+                    }
+                });
+
+                function filterInvoices() {
+                    const typeId = document.getElementById('typeFilter').value;
+                    const userId = document.getElementById('userFilter').value;
+                    const orderId = document.getElementById('idFilter').value.toLowerCase();
+                    
+                    // Save filter states
+                    sessionStorage.setItem('reviewFilterType', typeId);
+                    sessionStorage.setItem('reviewFilterUser', userId);
+                    sessionStorage.setItem('reviewFilterId', orderId);
+
+                    const rows = document.querySelectorAll('.invoice-row');
+                    
+                    rows.forEach(row => {
+                        const rowType = row.getAttribute('data-invoicetype');
+                        const rowUser = row.getAttribute('data-userid');
+                        const rowOrder = row.getAttribute('data-orderid');
+                        
+                        let show = true;
+                        if (typeId !== 'all' && rowType !== typeId) show = false;
+                        if (userId !== 'all' && rowUser !== userId) show = false;
+                        if (orderId && !rowOrder.includes(orderId)) show = false;
+                        
+                        // Show/Hide Row
+                        row.style.display = show ? '' : 'none';
+                    });
+                    
+                    // Optionally hide date headers if all invoices under them are hidden
+                    const dateHeaders = document.querySelectorAll('.invoice-day-row');
+                    dateHeaders.forEach(header => {
+                        let nextSibling = header.nextElementSibling;
+                        let hasVisibleInvoice = false;
+                        while(nextSibling && nextSibling.classList.contains('invoice-row')) {
+                            if(nextSibling.style.display !== 'none') {
+                                hasVisibleInvoice = true;
+                                break;
+                            }
+                            nextSibling = nextSibling.nextElementSibling;
+                        }
+                        header.style.display = hasVisibleInvoice ? '' : 'none';
+                    });
+                }
+            </script>
+        {% endif %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

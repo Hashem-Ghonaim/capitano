@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>كتالوج: {{ catalog_title }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Cairo', sans-serif; 
+            margin: 0; 
+            background: #f5f5f5; 
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        /* لوحة التحكم */
+        .control-panel {
+            position: fixed; top: 0; left: 0; right: 0;
+            background: #2c3e50; color: white; padding: 10px 15px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 9999;
+            display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px;
+        }
+        .btn-action {
+            padding: 8px 16px; color: white; border: none; border-radius: 5px; 
+            cursor: pointer; font-family: 'Cairo'; font-size: 13px; white-space: nowrap;
+        }
+
+        .spacer { height: 60px; }
+
+        /* === العرض الرئيسي (grid cards) === */
+        #catalog-grid {
+            max-width: 900px; margin: 0 auto; padding: 10px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px;
+        }
+
+        .card-item {
+            background: white; border-radius: 10px; overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center;
+        }
+        .card-item img {
+            width: 100%; height: 160px; object-fit: contain; background: #fafafa;
+        }
+        .card-item .info { padding: 8px; }
+        .card-item .name { font-weight: 800; font-size: 13px; color: #2c3e50; margin-bottom: 3px; }
+        .card-item .cat { font-size: 11px; color: #999; }
+        .card-item .price { font-size: 18px; font-weight: 900; color: #27ae60; margin: 5px 0 2px; }
+        .card-item .code { font-size: 11px; color: #c0392b; }
+
+        /* === عرض A4 للطباعة (مخفي بشكل افتراضي) === */
+        #print-container { display: none; }
+
+        .product-page {
+            width: 210mm; height: 296mm; padding: 30px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center;
+            page-break-after: always; position: relative; background: white;
+        }
+        .product-page .prod-image { width: 100%; max-height: 400px; object-fit: contain; margin-bottom: 20px; }
+        .product-page .prod-name { font-size: 2.5rem; margin-bottom: 10px; color: #2c3e50; font-weight: 800; }
+        .product-page .prod-cat { font-size: 1.2rem; color: #fff; background: #7f8c8d; padding: 5px 25px; border-radius: 50px; margin-bottom: 30px; display: inline-block; }
+        .product-page .info-box { border: 3px solid #2c3e50; padding: 20px 50px; border-radius: 20px; background: #f8f9fa; min-width: 300px; }
+        .product-page .prod-price { font-size: 3.5rem; color: #27ae60; margin: 0; font-weight: 900; }
+        .product-page .prod-code { font-size: 1.5rem; color: #c0392b; margin-top: 10px; font-weight: bold; }
+
+        /* شاشة التحميل */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); color: white;
+            display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10000;
+        }
+        #loading-overlay .spinner { font-size: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* الطباعة */
+        @media print {
+            body { background: white; margin: 0; }
+            .control-panel, #loading-overlay, .spacer, #catalog-grid { display: none !important; }
+            #print-container { display: block !important; margin: 0; width: 100%; }
+            .product-page { border: none; margin: 0; }
+            @page { margin: 0; size: A4 portrait; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner">⏳</div>
+        <h3 id="loading-title">جاري إنشاء ملف PDF...</h3>
+        <p id="loading-text">يرجى الانتظار...</p>
+    </div>
+
+    <div class="control-panel" id="ctrlPanel">
+        <div style="font-weight: bold; font-size: 13px;">{{ catalog_title }} ({{ products|length }})</div>
+        
+        <button onclick="printCatalog()" class="btn-action" style="background: #34495e;">
+            <i class="fas fa-print"></i> طباعة (PC)
+        </button>
+
+        <button onclick="downloadPDF()" class="btn-action" style="background: #e74c3c;">
+            <i class="fas fa-file-download"></i> تحميل PDF
+        </button>
+
+        <a href="/dashboard" class="btn-action" style="background: #7f8c8d; text-decoration: none; font-size: 12px;">خروج</a>
+    </div>
+
+    <div class="spacer"></div>
+
+    <!-- العرض الرئيسي: Grid Cards (مناسب للموبايل والكمبيوتر) -->
+    <div id="catalog-grid">
+        {% for p in products %}
+        <div class="card-item">
+            <img src="/static/uploads/{{ p.model.image }}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%2260%22 x=%2220%22 font-size=%2240%22>📷</text></svg>'">
+            <div class="info">
+                <div class="name">{{ p.model.name }}</div>
+                <div class="cat">{{ p.model.category.name }}</div>
+                <div class="price">{{ p.sell_price }} ج.م</div>
+                <div class="code">كود: {{ p.id }}</div>
+            </div>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 50px; grid-column: 1/-1;">
+            <h2>لا توجد منتجات متوفرة حالياً</h2>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- عرض A4 للطباعة (مخفي - يظهر فقط عند الطباعة) -->
+    <div id="print-container">
+        {% for p in products %}
+        <div class="product-page">
+            <img src="/static/uploads/{{ p.model.image }}" class="prod-image" onerror="this.style.display='none'">
+            <div class="prod-name">{{ p.model.name }}</div>
+            <div class="prod-cat">{{ p.model.category.name }}</div>
+            <div class="info-box">
+                <div class="prod-price">{{ p.sell_price }} ج.م</div>
+                <div class="prod-code">كود: {{ p.id }}</div>
+            </div>
+            <div style="position: absolute; bottom: 20px; font-size: 12px; color: #999;">
+                {{ loop.index }} / {{ products|length }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <script>
+        // طباعة A4 (للكمبيوتر)
+        function printCatalog() {
+            document.getElementById('print-container').style.display = 'block';
+            // تحميل الصور في print container
+            const imgs = document.querySelectorAll('#print-container img');
+            let loaded = 0;
+            const total = imgs.length;
+            
+            if (total === 0) { window.print(); return; }
+            
+            imgs.forEach(img => {
+                if (img.complete) { loaded++; if(loaded >= total) window.print(); }
+                else {
+                    img.onload = () => { loaded++; if(loaded >= total) window.print(); };
+                    img.onerror = () => { loaded++; if(loaded >= total) window.print(); };
+                }
+            });
+        }
+
+        // تحميل PDF (يعمل على الموبايل والكمبيوتر)
+        function downloadPDF() {
+            const overlay = document.getElementById('loading-overlay');
+            const loadingText = document.getElementById('loading-text');
+            overlay.style.display = 'flex';
+
+            // نستخدم الـ grid cards نفسها (اللي ظاهرة) — أخف بكتير من A4 pages
+            const grid = document.getElementById('catalog-grid');
+            loadingText.textContent = 'جاري تجهيز المنتجات...';
+
+            // انتظار تحميل الصور المرئية
+            const images = grid.querySelectorAll('img');
+            const promises = Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(resolve => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                    // timeout لو الصورة مش بتتحمل
+                    setTimeout(resolve, 3000);
+                });
+            });
+
+            Promise.all(promises).then(() => {
+                loadingText.textContent = 'جاري إنشاء ملف PDF...';
+
+                const opt = {
+                    margin:       [5, 5, 5, 5],
+                    filename:     'Catalog_{{ catalog_title }}.pdf',
+                    image:        { type: 'jpeg', quality: 0.6 },
+                    html2canvas:  { 
+                        scale: 1.5, 
+                        useCORS: true, 
+                        allowTaint: true,
+                        logging: false,
+                        width: grid.scrollWidth
+                    },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak:    { mode: ['avoid-all', 'css'] }
+                };
+
+                return html2pdf().set(opt).from(grid).save();
+            }).then(() => {
+                overlay.style.display = 'none';
+            }).catch(err => {
+                console.error('PDF Error:', err);
+                alert("حدث خطأ، حاول تقلل عدد المنتجات أو استخدم طباعة PC");
+                overlay.style.display = 'none';
+            });
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة المصروفات والمسحوبات</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+    </style>
+</head>
+
+<body class="p-4">
+
+    <div class="container">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold text-primary"><i class="fas fa-wallet"></i> المصروفات والمسحوبات</h3>
+            <a href="/dashboard" class="btn btn-secondary">الرئيسية</a>
+        </div>
+
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-header bg-white fw-bold py-3">
+                <i class="fas fa-plus-circle text-success"></i> تسجيل عملية جديدة
+            </div>
+            <div class="card-body bg-white">
+                <form method="POST">
+                    <input type="hidden" name="add_expense" value="1">
+
+                    <div class="row g-3 align-items-end">
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">نظام الخصم</label>
+                            <select name="expense_type" class="form-select fw-bold" id="expenseType"
+                                onchange="togglePartnerSelect()">
+                                <option value="partnership" class="text-primary">🤝 الشراكة (50% Abo Eyad - 50% Abo_malek)</option>
+                                <option value="personal" class="text-danger">👤 حساب شخصي (لمدير محدد)</option>
+                                <option value="split_4" class="text-success" selected>👥 مقسم على 5 (20% لكل شخص)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">البند / التصنيف</label>
+                            <div class="input-group">
+                                <select name="category_id" class="form-select" required>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
+                                    data-bs-target="#addCatModal">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-primary">خصم من حساب:</label>
+                            <select name="account_id" class="form-select border-primary" required>
+                                {% for acc in accounts %}
+                                <option value="{{ acc.id }}">{{ acc.name }} (رصيد: {{ acc.balance }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">المبلغ (ج.م)</label>
+                            <input type="number" step="0.5" name="amount" class="form-control" required
+                                placeholder="0.00">
+                        </div>
+
+                        <div class="col-md-3" id="partnerDiv" style="display: none;">
+                            <label class="form-label fw-bold small text-danger">من الذي سحب؟</label>
+                            <select name="partner_id" class="form-select border-danger">
+                                {% for p in partners %}
+                                <option value="{{ p.id }}">{{ p.fullname }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-7">
+                            <label class="form-label fw-bold small">ملاحظات / وصف</label>
+                            <input type="text" name="description" class="form-control" placeholder="وصف المصروف...">
+                        </div>
+
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100 fw-bold">حفظ</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white fw-bold py-3">
+                <i class="fas fa-history text-muted"></i> آخر العمليات المسجلة
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>البند</th>
+                            <th>الوصف</th>
+                            <th>خُصم من</th>
+                            <th>المبلغ</th>
+                            <th>المسجل</th>
+                            <th>إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for exp in expenses %}
+                        <tr>
+                            <td>{{ exp.date.strftime('%Y-%m-%d') }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ exp.category.name }}</span></td>
+                            <td>{{ exp.description }}</td>
+                            <td>
+                                {% if '(شراكة)' in exp.description or exp.is_shared %}
+                                <span class="badge bg-success">الشراكة (50/50)</span>
+                                {% elif '(مقسم)' in exp.description %}
+                                <span class="badge bg-dark">مقسم على 5</span>
+                                {% elif '(شخصي:' in exp.description %}
+                                {% set p_name = exp.description.split('(شخصي: ')[1].split(')')[0] if '(شخصي: ' in
+                                exp.description else 'غير معروف' %}
+                                <span class="badge bg-danger">شخصي ({{ p_name }})</span>
+                                {% elif 'سحب' in exp.description or 'شخصي' in exp.description or 'خاص' in
+                                exp.description %}
+                                <span class="badge bg-danger">سحب شخصي</span>
+                                {% else %}
+                                <span class="badge bg-secondary">غير محدد</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold text-danger">- {{ exp.amount }} ج.م</td>
+                            <td class="small text-muted">{{ exp.created_by.fullname }}</td>
+
+                            <td>
+                                <a href="/expenses/delete/{{ exp.id }}" class="btn btn-sm btn-outline-danger"
+                                    onclick="return confirm('هل أنت متأكد؟ سيتم رد المبلغ للخزينة وإلغاء الخصم.')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">لا توجد مصروفات مسجلة</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addCatModal" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <form method="POST" class="modal-content">
+                <input type="hidden" name="add_category" value="1">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold">إضافة بند جديد</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" name="new_category_name" class="form-control"
+                        placeholder="اسم البند (مثال: صيانة تكييف)" required>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="submit" class="btn btn-success w-100 btn-sm">إضافة للقائمة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function togglePartnerSelect() {
+            const type = document.getElementById('expenseType').value;
+            const div = document.getElementById('partnerDiv');
+
+            if (type === 'personal') {
+                div.style.display = 'block';
+                document.querySelector('[name="partner_id"]').required = true;
+            } else {
+                div.style.display = 'none';
+                document.querySelector('[name="partner_id"]').required = false;
+            }
+        }
+    </script>
+
+</body>
+
+</html>

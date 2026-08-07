@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>جرد المخزن - 4Brothers</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            background-color: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 0;
+            color: #555;
+            font-size: 14px;
+        }
+        .category-section {
+            margin-bottom: 40px;
+            page-break-inside: avoid;
+        }
+        .category-title {
+            background-color: #eee;
+            padding: 8px 15px;
+            font-size: 18px;
+            font-weight: bold;
+            border: 1px solid #ccc;
+            margin: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+            font-size: 14px;
+        }
+        th {
+            background-color: #f9f9f9;
+        }
+        .stock-col {
+            width: 100px;
+        }
+        .empty-col {
+            width: 120px;
+            background-color: #fdfdfd;
+        }
+        .img-col {
+            width: 60px;
+        }
+        .img-col img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .category-section {
+                page-break-inside: avoid;
+            }
+        }
+        
+        .print-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <button onclick="window.print()" class="print-btn no-print">🖨️ طباعة التقرير</button>
+
+    <div class="header">
+        <h1>تقرير جرد المخزن</h1>
+        <p>تاريخ الطباعة: {{ now }}</p>
+    </div>
+
+    {% for cat, products in grouped_products.items() %}
+    <div class="category-section">
+        <h2 class="category-title">{{ cat }} <span style="font-size: 12px; font-weight: normal;">({{ products|length }} منتج)</span></h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>كود</th>
+                    <th class="img-col">صورة</th>
+                    <th>المنتج</th>
+                    <th>سعر البيع</th>
+                    <th class="stock-col">المخزون المسجل</th>
+                    <th class="empty-col">الجرد الفعلي</th>
+                    <th>ملاحظات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in products %}
+                <tr>
+                    <td>{{ p.id }}</td>
+                    <td class="img-col">
+                        {% if p.model.image %}
+                        <img src="/static/uploads/{{ p.model.image }}">
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; font-weight: bold;">{{ p.model.name }}</td>
+                    <td>{{ p.sell_price }}</td>
+                    <td style="font-weight: bold; font-size: 16px;">{{ p.stock }}</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="text-align: center; margin-top: 50px; font-size: 18px;">لا توجد منتجات في المخزن حالياً.</p>
+    {% endfor %}
+
+</body>
+</html>

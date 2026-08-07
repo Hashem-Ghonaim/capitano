@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>سجل الإداريات والمحذوفات</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        .table td { vertical-align: middle; }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="text-danger"><i class="fas fa-trash-alt"></i> سجل الرقابة والمحذوفات</h3>
+            <a href="/dashboard" class="btn btn-secondary">الرئيسية</a>
+        </div>
+
+        <div class="card shadow-sm border-0 border-top border-danger border-3">
+            <div class="table-responsive">
+                <table class="table table-hover text-center mb-0" id="recycleTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>نوع السجل</th>
+                            <th>رقم السجل (ID)</th>
+                            <th>الموظف الذي قام بالحذف</th>
+                            <th>وقت وتاريخ الحذف</th>
+                            <th>التفاصيل</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td class="fw-bold">{{ log.table_name }}</td>
+                            <td>{{ log.record_id or '-' }}</td>
+                            <td>
+                                {% if log.deleter %}
+                                    <span class="badge bg-secondary">{{ log.deleter.fullname }}</span>
+                                {% else %}
+                                    <span class="text-muted">السيستم</span>
+                                {% endif %}
+                            </td>
+                            <td dir="ltr">{{ log.deleted_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailsModal{{ log.id }}">
+                                    <i class="fas fa-eye"></i> عرض الداتا
+                                </button>
+
+                                <div class="modal fade text-end" id="detailsModal{{ log.id }}" tabindex="-1" dir="rtl">
+                                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-dark text-white">
+                                                <h5 class="modal-title">تفاصيل ما قبل الحذف</h5>
+                                                <button type="button" class="btn-close btn-close-white ms-0 me-auto" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body p-0">
+                                                <table class="table table-sm table-striped mb-0">
+                                                    <tbody>
+                                                        <!-- سيقوم جافاسكريبت بتنسيق وعرض الـ JSON -->
+                                                        <script>
+                                                            document.write((function() {
+                                                                try {
+                                                                    let data = JSON.parse(`{{ log.record_summary | safe }}`);
+                                                                    let keyMap = {
+                                                                        'id': 'المعرف (ID)',
+                                                                        'user_id': 'رقم الموظف (ID)',
+                                                                        'customer_id': 'رقم العميل (ID)',
+                                                                        'date': 'التاريخ',
+                                                                        'total_amount': 'الإجمالي (قبل الخصم)',
+                                                                        'discount': 'الخصم',
+                                                                        'final_total': 'الصافي النهائي',
+                                                                        'sales_rep_code': 'كود مندوب المبيعات',
+                                                                        'packer_id': 'رقم المجمع (ID)',
+                                                                        'is_shipping': 'فاتورة شحن؟',
+                                                                        'shipping_company_id': 'رقم شركة الشحن (ID)',
+                                                                        'shipping_fee': 'مصاريف الشحن',
+                                                                        'shipping_paid_by': 'من يدفع الشحن',
+                                                                        'paid_upfront': 'المدفوع مقدماً',
+                                                                        'amount_due': 'المتبقي للدفع',
+                                                                        'waybill_no': 'رقم البوليصة',
+                                                                        'shipping_status': 'حالة الشحن',
+                                                                        'is_proforma': 'مسودة (مبدئية)؟',
+                                                                        'is_reviewed': 'تمت مراجعتها؟',
+                                                                        'shipping_notes': 'ملاحظات الشحن',
+                                                                        'notes': 'ملاحظات',
+                                                                        'total_qty': 'إجمالي القطع',
+                                                                        'refund_amount': 'مبلغ الاسترجاع',
+                                                                        'return_fee': 'رسوم المرتجع',
+                                                                        'reason': 'السبب',
+                                                                        'amount': 'المبلغ',
+                                                                        'type': 'النوع',
+                                                                        'name': 'الاسم',
+                                                                        'phone': 'رقم الهاتف',
+                                                                        'address': 'العنوان',
+                                                                        'description': 'الوصف',
+                                                                        'status': 'الحالة',
+                                                                        'created_at': 'تاريخ الإنشاء',
+                                                                        'invoice_items_details': 'مكونات الفاتورة (المنتجات)'
+                                                                    };
+                                                                    
+                                                                    function formatVal(v) {
+                                                                        if (v === null || v === '') return '<span class="text-muted">فارغ</span>';
+                                                                        if (v === true || v === 'True') return '<span class="badge bg-success">نعم</span>';
+                                                                        if (v === false || v === 'False') return '<span class="badge bg-danger">لا</span>';
+                                                                        return v;
+                                                                    }
+
+                                                                    let html = '';
+                                                                    for(let key in data) {
+                                                                        let arKey = keyMap[key] || key;
+                                                                        html += `<tr>
+                                                                            <th class="text-secondary w-50" style="border-left: 1px solid #ddd; padding: 10px; background-color: #f8f9fa;">${arKey} <small class="text-muted d-block" dir="ltr" style="font-size: 10px;">${key}</small></th>
+                                                                            <td style="padding: 10px; word-break: break-word; vertical-align: middle;">${formatVal(data[key])}</td>
+                                                                        </tr>`;
+                                                                    }
+                                                                    return html;
+                                                                } catch(e) {
+                                                                    return `<tr><td>حدث خطأ في عرض البيانات: ${e.message}</td></tr>`;
+                                                                }
+                                                            })());
+                                                        </script>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="py-4 text-muted">لا توجد سجلات محذوفة</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

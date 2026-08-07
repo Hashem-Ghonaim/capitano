@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الملف الشخصي | {{ user.fullname }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            height: 100%;
+            text-align: center;
+            border-bottom: 4px solid transparent;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .cursor-pointer {
+            cursor: pointer;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .card-income {
+            border-color: #198754;
+        }
+
+        .card-expense {
+            border-color: #dc3545;
+        }
+
+        .card-net {
+            background: linear-gradient(135deg, #198754, #0f5132);
+            color: white;
+        }
+
+        .profile-head {
+            background: #fff;
+            padding: 30px;
+            border-radius: 0 0 20px 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            background: #e9ecef;
+            color: #333;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin: 0 auto 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar navbar-light bg-white shadow-sm px-3 mb-0">
+        <div class="container-fluid">
+            <a href="/dashboard" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-right"></i> عودة
+                للرئيسية</a>
+            <span class="fw-bold">حسابي المالي</span>
+        </div>
+    </nav>
+
+    <div class="profile-head">
+        <div class="avatar">{{ user.fullname[0] }}</div>
+        <h3 class="fw-bold">{{ user.fullname }}</h3>
+        <span class="badge bg-secondary">{{ user.role }}</span>
+        <div class="text-muted small mt-1">{{ user.emp_code }}</div>
+        {% if user.role == 'general_manager' %}
+        <div class="mt-3">
+            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#editPhoneModal">
+                <i class="fas fa-edit"></i> تعديل رقم الهاتف
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="container pb-5">
+
+        <!-- اختيار الفترة -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body py-3 d-flex align-items-center justify-content-center gap-3 flex-wrap">
+                <form action="/profile" method="GET" class="d-flex align-items-center gap-2">
+                    {% if view_user_id %}
+                    <input type="hidden" name="user_id" value="{{ view_user_id }}">
+                    {% endif %}
+                    <label class="fw-bold text-muted mb-0"><i class="fas fa-calendar-alt me-1"></i> من:</label>
+                    <input type="date" name="start_date" class="form-control form-control-sm"
+                        style="max-width: 150px; direction: ltr;" value="{{ start_date }}">
+
+                    <label class="fw-bold text-muted mb-0 ms-2">إلى:</label>
+                    <input type="date" name="end_date" class="form-control form-control-sm"
+                        style="max-width: 150px; direction: ltr;" value="{{ end_date }}">
+
+                    <button type="submit" class="btn btn-sm btn-primary ms-2"><i class="fas fa-filter"></i> عرض</button>
+                    <a href="/profile{% if view_user_id %}?user_id={{ view_user_id }}{% endif %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-redo"></i> الشهر
+                        الحالي</a>
+                </form>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show text-center">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+        {% if user.role in ['manager', 'general_manager', 'partner'] %}
+
+        <h5 class="fw-bold mb-4 text-primary border-bottom pb-2"><i class="fas fa-chart-pie me-2"></i>
+            {% if mgr.is_partner %}تقرير الشراكة المالي (العام للشركة)
+            {% else %}تقرير الإيرادات والمصاريف (لفريقك){% endif %}
+        </h5>
+        <div class="row g-3 mb-4">
+            {% if mgr.is_partner %}
+            <!-- 1. قطع الشركة المباعة -->
+            <div class="col-md-3">
+                <div class="stat-card cursor-pointer" style="border-color: #0dcaf0;" title="عرض تفاصيل القطع المباعة"
+                    onclick="showFinancialDetails('sold_items', '{{ start_date }}', '{{ end_date }}', null, 'القطع المباعة المعتمدة')">
+                    <div class="stat-label">قطع الشركة المباعة</div>
+                    <div class="stat-value text-info">{{ mgr.global_items }} <small class="fs-6">قطعة</small></div>
+                </div>
+            </div>
+            <!-- 2. إجمالي هامش ربح المبيعات -->
+            <div class="col-md-3">
+                <div class="stat-card card-income cursor-pointer" title="عرض تفاصيل الأرباح"
+                    onclick="showFinancialDetails('sales_profit', '{{ start_date }}', '{{ end_date }}', null, 'أرباح المبيعات للفترة')">
+                    <div class="stat-label">إجمالي ربح المبيعات</div>
+                    <div class="stat-value text-success" dir="ltr">+{{ '{:,.2f}'.format(mgr.global_gross) }}</div>
+                </div>
+            </div>
+            <!-- 3. إجمالي المصاريف والمستقطعات للشركة -->
+            <div class="col-md-3">
+                <div class="stat-card card-expense cursor-pointer" title="عرض تفاصيل المصاريف"
+                    onclick="showFinancialDetails('company_expenses', '{{ start_date }}', '{{ end_date }}', null, 'المصاريف للفترة المحددة')">
+                    <div class="stat-label">إجمالي المصاريف</div>
+                    <div class="stat-value text-danger" dir="ltr">-{{ '{:,.2f}'.format(mgr.global_expenses_total) }}
+                    </div>
+                </div>
+            </div>
+            <!-- 4. عمولات شركات الشحن الإضافية -->
+            {% if mgr.global_shipping_extra and mgr.global_shipping_extra > 0 %}
+            <div class="col-md-3">
+                <div class="stat-card card-expense cursor-pointer" style="border-color: #fd7e14;" title="عمولة شركة الشحن المخصومة من التحصيل"
+                    onclick="showFinancialDetails('shipping_extra_commission', '{{ start_date }}', '{{ end_date }}', null, 'عمولات شركات الشحن الإضافية')">
+                    <div class="stat-label"><i class="fas fa-truck me-1"></i>عمولات شركات الشحن</div>
+                    <div class="stat-value text-danger" dir="ltr">-{{ '{:,.2f}'.format(mgr.global_shipping_extra) }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <!-- 5. إجمالي صافي ربح الشركة -->
+            <div class="col-md-3">
+                <div class="stat-card card-net py-2 text-center" style="background-color: #0d6efd;">
+                    <div class="stat-label text-white-50">صافي ربح الشركة</div>
+                    <div class="stat-value text-white" dir="ltr">{{ '{:,.2f}'.format(mgr.global_net_profit) }} ج.م</div>
+                </div>
+            </div>
+            {% else %}
+            <!-- عرض المديرين العاديين -->
+            <div class="col-md-3">
+                <div class="stat-card cursor-pointer" style="border-color: #0dcaf0;" title="عرض تفاصيل القطع المباعة"
+                    onclick="showFinancialDetails('sold_items', '{{ start_date }}', '{{ end_date }}', '{{ user.id }}', 'القطع المباعة لفريقك')">
+                    <div class="stat-label">القطع المباعة لفريقك</div>
+                    <div class="stat-value text-info">{{ mgr.global_items }} <small class="fs-6">قطعة</small></div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card card-income">
+                    <div class="stat-label">العمولة الكلية (14ج) لفريقك</div>
+                    <div class="stat-value text-success">+{{ '{:,.2f}'.format(mgr.global_gross) }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card card-expense cursor-pointer" title="عرض تفاصيل العمولات"
+                    onclick="showFinancialDetails('sub_commission_details', '{{ start_date }}', '{{ end_date }}', '{{ user.id }}', 'إجمالي عمولات السيلز (لفريقك)')">
+                    <div class="stat-label">إجمالي عمولات السيلز</div>
+                    <div class="stat-value text-danger" dir="ltr">{% if mgr.global_girls_comm > 0 %}-{% endif %}{{
+                        '{:,.2f}'.format(mgr.global_girls_comm|abs) }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card card-expense cursor-pointer" title="عرض التفاصيل"
+                    onclick="showFinancialDetails('company_expenses', '{{ start_date }}', '{{ end_date }}', null, 'مصاريف وخصومات فريقك')">
+                    <div class="stat-label">إجمالي الخصومات والمصاريف</div>
+                    <div class="stat-value text-danger" dir="ltr">-{{ '{:,.2f}'.format((mgr.global_discounts +
+                        mgr.global_expenses + mgr.global_returns + mgr.global_staff_costs + mgr.global_salary_expenses + mgr.global_bonuses)|abs) }}</div>
+                </div>
+            </div>
+            {% if mgr.my_bonuses and mgr.my_bonuses > 0 %}
+            <div class="col-md-3">
+                <div class="stat-card card-income">
+                    <div class="stat-label">مكافآت</div>
+                    <div class="stat-value text-success" dir="ltr">+{{ '{:,.2f}'.format(mgr.my_bonuses) }}</div>
+                </div>
+            </div>
+            {% endif %}
+            <div class="col-12">
+                <div class="stat-card card-net py-2 text-center" style="background-color: #198754;">
+                    <div class="stat-label text-white-50">إجمالي صافي أرباحك</div>
+                    <div class="stat-value text-white">{{ '{:,.2f}'.format(mgr.global_net_profit) }} ج.م</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if mgr.is_partner %}
+        <h5 class="fw-bold mb-4 text-success border-bottom pb-2"><i class="fas fa-user-tie me-2"></i>
+            صافي أرباحي (Lifetime) - إجمالي ربح الشركة الشامل: {{ '{:,.2f}'.format(mgr.lifetime_global_net_profit) }} ج.م
+        </h5>
+        {% endif %}
+
+        {% if mgr.is_partner %}
+        <div class="row g-4 mb-4">
+            <!-- حساب أبو إياد (يمين) -->
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100" style="background-color: #f8f9fa;">
+                    <div class="card-header bg-white text-center border-bottom-0 pt-3">
+                        <h5 class="fw-bold text-info mb-0">حساب أبو إياد</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="stat-card border border-success border-2 p-2 position-relative h-100">
+                                    {% if user.role == 'general_manager' %}
+                                    <button type="button"
+                                        class="btn btn-sm btn-link text-primary position-absolute top-0 start-0 p-1"
+                                        onclick="openOpeningBalanceModal(2, 'أبو إياد', '{{ mgr.eyad_opening }}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    {% endif %}
+                                    <div class="stat-label {% if mgr.eyad_opening > 0 %}text-success{% else %}text-danger{% endif %} fw-bold"
+                                        style="font-size: 0.8rem;">الرصيد الافتتاحي (بداية المدة)</div>
+                                    <div class="stat-value {% if mgr.eyad_opening > 0 %}text-success{% else %}text-danger{% endif %} mt-1"
+                                        dir="ltr" style="font-size: 1.4rem;">
+                                        {% if mgr.eyad_opening > 0 %}+{% endif %}{{ '{:,.2f}'.format(mgr.eyad_opening)
+                                        }} ج.م
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-card border border-success border-2 p-2 h-100">
+                                    <div class="stat-label text-success fw-bold" style="font-size: 0.8rem;">نصيبي من
+                                        الأرباح (50%)</div>
+                                    <div class="stat-value text-success mt-1" dir="ltr" style="font-size: 1.4rem;">
+                                        +{{ '{:,.2f}'.format(mgr.eyad_share) }} ج.م
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <div class="stat-card border border-danger border-1 p-2 bg-white cursor-pointer"
+                                    title="عرض تفاصيل السحوبات"
+                                    onclick="showFinancialDetails('partner_withdrawals', null, null, {{ mgr.eyad_id }}, 'سحوبات أبو إياد (تراكمي)')">
+                                    <div class="stat-label text-danger mb-1" style="font-size: 0.8rem;">متبقي سلفة لم
+                                        تسدد و سحوباتي الشخصية</div>
+                                    <div class="stat-value text-danger mt-0" dir="ltr" style="font-size: 1.5rem;">
+                                        -{{ '{:,.2f}'.format(mgr.eyad_withdrawals) }} ج.م
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <div class="stat-card p-3 text-center text-white rounded"
+                                    style="background-color: #198754;">
+                                    <div class="stat-label text-white-50 mb-1">الصافي النهائي المستحق لأبو إياد</div>
+                                    <div class="stat-value fw-bold m-0" dir="ltr" style="font-size: 1.6rem;">
+                                        {{ '{:,.2f}'.format(mgr.eyad_final_net) }} ج.م
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- حساب أبو مالك (يسار) -->
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 h-100" style="background-color: #f8f9fa;">
+                    <div class="card-header bg-white text-center border-bottom-0 pt-3">
+                        <h5 class="fw-bold text-primary mb-0">حساب أبو مالك</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="stat-card border border-success border-2 p-2 position-relative h-100">
+                                    {% if user.role == 'general_manager' %}
+                                    <button type="button"
+                                        class="btn btn-sm btn-link text-primary position-absolute top-0 start-0 p-1"
+                                        onclick="openOpeningBalanceModal(3, 'أبو مالك', '{{ mgr.malek_opening }}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    {% endif %}
+                                    <div class="stat-label {% if mgr.malek_opening > 0 %}text-success{% else %}text-danger{% endif %} fw-bold"
+                                        style="font-size: 0.8rem;">الرصيد الافتتاحي (بداية المدة)</div>
+                                    <div class="stat-value {% if mgr.malek_opening > 0 %}text-success{% else %}text-danger{% endif %} mt-1"
+                                        dir="ltr" style="font-size: 1.4rem;">
+                                        {% if mgr.malek_opening > 0 %}+{% endif %}{{ '{:,.2f}'.format(mgr.malek_opening)
+                                        }} ج.م
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-card border border-success border-2 p-2 h-100">
+                                    <div class="stat-label text-success fw-bold" style="font-size: 0.8rem;">نصيبي من
+                                        الأرباح (50%)</div>
+                                    <div class="stat-value text-success mt-1" dir="ltr" style="font-size: 1.4rem;">
+                                        +{{ '{:,.2f}'.format(mgr.malek_share) }} ج.م
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <div class="stat-card border border-danger border-1 p-2 bg-white cursor-pointer"
+                                    title="عرض تفاصيل السحوبات"
+                                    onclick="showFinancialDetails('partner_withdrawals', null, null, {{ mgr.malek_id }}, 'سحوبات أبو مالك (تراكمي)')">
+                                    <div class="stat-label text-danger mb-1" style="font-size: 0.8rem;">متبقي سلفة لم
+                                        تسدد و سحوباتي الشخصية</div>
+                                    <div class="stat-value text-danger mt-0" dir="ltr" style="font-size: 1.5rem;">
+                                        -{{ '{:,.2f}'.format(mgr.malek_withdrawals) }} ج.م
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <div class="stat-card p-3 text-center text-white rounded"
+                                    style="background-color: #198754;">
+                                    <div class="stat-label text-white-50 mb-1">الصافي النهائي المستحق لأبو مالك</div>
+                                    <div class="stat-value fw-bold m-0" dir="ltr" style="font-size: 1.6rem;">
+                                        {{ '{:,.2f}'.format(mgr.malek_final_net) }} ج.م
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="stat-card card-income py-3 border border-success border-2 shadow-sm cursor-pointer"
+                    title="عرض إجمالي عمولاتك المعتمدة (Lifetime)"
+                    onclick="showFinancialDetails('net_profit', null, null, '{{ user.id }}', 'تفاصيل الأرباح')">
+                    <div class="stat-label text-success fw-bold">إجمالي عمولاتك (Lifetime)</div>
+                    <div class="stat-value {% if mgr.my_share < 0 %}text-danger{% else %}text-success{% endif %} display-6"
+                        dir="ltr">
+                        {% if mgr.my_share > 0 %}+{% endif %}{{ '{:,.2f}'.format(mgr.my_share) }} ج.م
+                    </div>
+                </div>
+            </div>
+
+            <!-- Opening Balance Section -->
+            <div class="col-md-6">
+                <div
+                    class="stat-card {% if mgr.opening_balance > 0 %}card-income border-success{% else %}card-expense border-danger{% endif %} py-3 border border-2 shadow-sm position-relative">
+                    {% if user.role == 'general_manager' %}
+                    <button type="button" class="btn btn-sm btn-link text-primary position-absolute top-0 start-0 p-1"
+                        onclick="openOpeningBalanceModal('{{ user.id }}', '{{ user.fullname }}', '{{ mgr.opening_balance }}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    {% endif %}
+                    <div
+                        class="stat-label {% if mgr.opening_balance > 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                        الرصيد الافتتاحي (بداية المدة)</div>
+                    <div class="stat-value {% if mgr.opening_balance > 0 %}text-success{% else %}text-danger{% endif %} display-6"
+                        dir="ltr">
+                        {% if mgr.opening_balance > 0 %}+{% endif %}{{ '{:,.2f}'.format(mgr.opening_balance) }} ج.م
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-card card-expense py-3 border border-danger border-2 shadow-sm cursor-pointer"
+                    title="عرض تفاصيل السحوبات"
+                    onclick="showFinancialDetails('partner_withdrawals', null, null, '{{ user.id }}', 'سحوبات وسلفيات')">
+                    <div class="stat-label text-danger fw-bold">متبقي سلفة لم تسدد و سحوباتي الشخصية</div>
+                    <div class="stat-value text-danger display-6" dir="ltr">-{{ '{:,.2f}'.format(mgr.my_withdrawals) }}
+                        ج.م</div>
+                </div>
+            </div>
+            <div class="col-12 mt-4">
+                <div class="stat-card py-4 text-center shadow"
+                    style="background: linear-gradient(135deg, #198754, #146c43); border-radius: 15px;">
+                    <div class="stat-label text-white-50 fs-5 mb-2">الصافي النهائي المستحق لي</div>
+                    <div class="stat-value text-white fw-bolder display-5" dir="ltr"
+                        style="text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
+                        {{ '{:,.2f}'.format(mgr.my_final_net) }} ج.م
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+    </div>
+
+    {% else %}
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-info text-white shadow-sm border-0 text-center py-3">
+                <h5 class="mb-0">📦 إجمالي مبيعاتي (عدد القطع)</h5>
+                <h1 class="fw-bold display-4 my-2">{{ emp.total_items }}</h1>
+                <small>قطعة مباعة هذا الشهر</small>
+            </div>
+        </div>
+    </div>
+
+    <h5 class="fw-bold mb-4 text-primary border-bottom pb-2"><i class="fas fa-wallet me-2"></i> بيان الراتب</h5>
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">الراتب الأساسي</div>
+                <div class="stat-value">{{ user.base_salary }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card card-income">
+                <div class="stat-label">العمولات المستحقة</div>
+                <div class="stat-value text-success" dir="ltr">{% if emp.commission > 0 %}+{% endif %}{{
+                    '{:,.2f}'.format(emp.commission) }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card card-income">
+                <div class="stat-label">مكافآت</div>
+                <div class="stat-value text-success" dir="ltr">{% if emp.bonuses > 0 %}+{% endif %}{{
+                    '{:,.2f}'.format(emp.bonuses) }}</div>
+            </div>
+        </div>
+        {% if emp.attendance_deduction and emp.attendance_deduction > 0 %}
+        <div class="col-6 col-md-3">
+            <div class="stat-card card-expense" style="cursor:pointer" onclick="showAttDetailsProfile()">
+                <div class="stat-label">جزاء حضور <i class="fas fa-search-plus small"></i></div>
+                <div class="stat-value text-danger" dir="ltr">-{{ '{:,.2f}'.format(emp.attendance_deduction) }}</div>
+            </div>
+        </div>
+        {% endif %}
+        <div class="col-6 col-md-3">
+            <div class="stat-card card-expense">
+                <div class="stat-label">خصومات وسلف</div>
+                <div class="stat-value text-danger" dir="ltr">-{{ '{:,.2f}'.format(emp.deductions + emp.advances) }}
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="stat-card card-net py-3">
+                <div class="stat-label text-white-50">صافي الراتب المتوقع</div>
+                <div class="stat-value text-white display-6" dir="ltr">{{ '{:,.2f}'.format(emp.net_salary) }} ج.م
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- جدول الخصومات والجزاءات -->
+    {% if emp.deductions_list|length > 0 %}
+    <h5 class="fw-bold mb-3 mt-4 text-danger border-bottom border-danger pb-2"><i class="fas fa-file-invoice-dollar me-2"></i> تفاصيل الخصومات والجزاءات</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-bordered table-striped text-center align-middle shadow-sm">
+            <thead class="table-danger">
+                <tr>
+                    <th>التاريخ</th>
+                    <th>السبب / النوع</th>
+                    <th>المبلغ (ج.م)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in emp.deductions_list %}
+                <tr>
+                    <td dir="ltr">{{ d.date }}</td>
+                    <td><span class="badge bg-secondary text-wrap" style="line-height:1.4;">{{ d.reason }}</span></td>
+                    <td class="text-danger fw-bold" dir="ltr">-{{ '{:,.2f}'.format(d.amount) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold"><i class="fas fa-lock me-2"></i> تغيير كلمة المرور</div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-2"><input type="password" name="old_password" class="form-control"
+                                placeholder="كلمة المرور الحالية" required></div>
+                        <div class="mb-2"><input type="password" name="new_password" class="form-control"
+                                placeholder="كلمة المرور الجديدة" required minlength="4"></div>
+                        <div class="mb-3"><input type="password" name="confirm_password" class="form-control"
+                                placeholder="تأكيد كلمة المرور" required></div>
+                        <button type="submit" class="btn btn-dark w-100 fw-bold">حفظ التغيير</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- Modal تعديل الهاتف -->
+    {% if user.role == 'general_manager' %}
+    <div class="modal fade" id="editPhoneModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form method="POST" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">تعديل رقم الهاتف</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">رقم الهاتف</label>
+                        <input type="text" name="phone" class="form-control" value="{{ user.phone }}" required
+                            dir="ltr">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary fw-bold">حفظ التغييرات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Set Opening Balance Modal -->
+    <div class="modal fade" id="openingBalanceModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/partners/set_opening_balance" method="POST" class="modal-content border-0 shadow-lg">
+                <input type="hidden" name="partner_id" id="obmodal_partner_id">
+                <input type="hidden" name="next" value="{{ url_for('profile') }}">
+                <div class="modal-header bg-info text-dark">
+                    <h5 class="modal-title fw-bold">تعديل الرصيد الافتتاحي</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <h4 class="fw-bold mb-3" id="obmodal_partner_name">Name</h4>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">المبلغ الجديد (ج.م)</label>
+                        <input type="number" step="0.01" name="amount" id="obmodal_amount"
+                            class="form-control fw-bold form-control-lg text-center" placeholder="0.00" required>
+                        <div class="form-text">موجب = له (دائن)، سالب = عليه (مدين)</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="submit" class="btn btn-info w-100 fw-bold shadow-sm">حفظ الرصيد</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Financial Details Modal -->
+    <div class="modal fade" id="financialDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-primary text-white p-3">
+                    <h5 class="modal-title fw-bold" id="fdModalTitle"><i class="fas fa-search-dollar me-2"></i>التفاصيل
+                        المالية</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0" style="min-height: 250px;">
+                    <div id="fdLoading" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted fw-bold">جاري تحميل البيانات...</p>
+                    </div>
+                    <div id="fdError" class="alert alert-danger mx-3 my-4 d-none fw-bold text-center"></div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0 text-center" id="fdTable"
+                            style="display: none;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>البيان / النوع</th>
+                                    <th id="fdAmountHeader">المبلغ (ج.م)</th>
+                                    <th>ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fdTableBody"></tbody>
+                            <tfoot class="table-primary fw-bold" id="fdTableFoot">
+                                <tr>
+                                    <td colspan="2" class="text-end">الإجمالي:</td>
+                                    <td colspan="2" class="text-start" id="fdTotalAmount">0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-secondary w-100 fw-bold" data-bs-dismiss="modal">إغلاق</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showFinancialDetails(type, startDate, endDate, partnerId, title) {
+            document.getElementById('fdModalTitle').innerText = 'تفاصيل: ' + title;
+            const table = document.getElementById('fdTable');
+            const tbody = document.getElementById('fdTableBody');
+            const loading = document.getElementById('fdLoading');
+            const error = document.getElementById('fdError');
+            const totalText = document.getElementById('fdTotalAmount');
+            const amountHeader = document.getElementById('fdAmountHeader');
+            const isItems = type === 'sold_items';
+
+            if (amountHeader) {
+                amountHeader.innerText = isItems ? 'عدد القطع' : 'المبلغ (ج.م)';
+            }
+
+            // تهيئة واجهة المودال
+            table.style.display = 'none';
+            error.classList.add('d-none');
+            loading.classList.remove('d-none');
+            tbody.innerHTML = '';
+            totalText.innerText = '0.00';
+
+            const modal = new bootstrap.Modal(document.getElementById('financialDetailsModal'));
+            modal.show();
+
+            // بناء رابط الـ Request
+            let url = `/api/financial-details?type=${type}`;
+            if (startDate) url += `&start_date=${startDate}`;
+            if (endDate) url += `&end_date=${endDate}`;
+            if (partnerId) url += `&partner_id=${partnerId}`;
+
+            fetch(url)
+                .then(res => {
+                    if (!res.ok) throw new Error('استجابة غير صالحة من الخادم');
+                    return res.json();
+                })
+                .then(data => {
+                    loading.classList.add('d-none');
+                    if (data.error) {
+                        error.innerText = data.error;
+                        error.classList.remove('d-none');
+                        return;
+                    }
+
+                    // company_expenses returns {items: [...], computed_total: N}
+                    // other types return a plain array
+                    const items = data.items || data;
+                    const hasComputedTotal = data.computed_total !== undefined;
+
+                    if (items.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="4" class="text-muted fw-bold py-4">لا توجد حركات مسجلة متطابقة للفترة المحددة</td></tr>`;
+                        table.style.display = 'table';
+                        return;
+                    }
+
+                    let total = 0;
+                    items.forEach(item => {
+                        total += parseFloat(item.amount);
+                        const tr = document.createElement('tr');
+                        const amountStr = parseFloat(item.amount).toLocaleString('en-US', { minimumFractionDigits: isItems ? 0 : 2 });
+                        // إضافة لون مميز للمبالغ (المرتجعات بالأحمر)
+                        const amountVal = parseFloat(item.amount);
+                        const colorClass = amountVal < 0 ? 'text-danger' : (type === 'sales_profit' ? 'text-success' : (isItems ? 'text-info' : 'text-danger'));
+                        tr.innerHTML = `
+                            <td><small dir="ltr" class="text-muted">${item.date || '-'}</small></td>
+                            <td class="fw-bold">${item.category}</td>
+                            <td class="fw-bold ${colorClass}" dir="ltr" style="font-size:1.1rem">${amountStr}</td>
+                            <td><small class="text-muted">${item.note || '-'}</small></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+
+                    // استخدام الإجمالي الرسمي من السيرفر لو موجود (يتطابق مع الكارت)
+                    const displayTotal = hasComputedTotal ? data.computed_total : total;
+                    totalText.innerText = displayTotal.toLocaleString('en-US', { minimumFractionDigits: isItems ? 0 : 2 }) + (isItems ? ' قطعة' : ' ج.م');
+                    table.style.display = 'table';
+                })
+                .catch(err => {
+                    loading.classList.add('d-none');
+                    error.innerText = 'حدث خطأ أثناء تحميل البيانات من الخادم والمزامنة.';
+                    error.classList.remove('d-none');
+                });
+        }
+
+        function openOpeningBalanceModal(id, name, currentBalance) {
+            document.getElementById('obmodal_partner_id').value = id;
+            document.getElementById('obmodal_partner_name').innerText = name;
+            document.getElementById('obmodal_amount').value = currentBalance;
+            new bootstrap.Modal(document.getElementById('openingBalanceModal')).show();
+        }
+
+        {% if emp and emp.attendance_details %}
+        function showAttDetailsProfile() {
+            const details = {{ emp.attendance_details | tojson }};
+            const modal = document.getElementById('attDetailsProfileModal');
+            const body = document.getElementById('att_profile_modal_body');
+
+            if (!details || details.length === 0) {
+                body.innerHTML = '<div class="text-center text-success p-4 fs-5"><i class="fas fa-check-circle me-2"></i>لا توجد جزاءات حضور ✅</div>';
+            } else {
+                let total = 0;
+                let rows = '';
+                details.forEach((d, i) => {
+                    total += d.deduction;
+                    rows += `<tr>
+                        <td class="text-muted small">${i + 1}</td>
+                        <td class="fw-bold">${d.date}<br><small class="text-muted">${d.day_name}</small></td>
+                        <td>${d.check_in}</td>
+                        <td>${d.check_out}</td>
+                        <td class="text-start small">${d.reason}</td>
+                        <td class="text-danger fw-bold">${d.deduction.toFixed(2)}</td>
+                    </tr>`;
+                });
+                body.innerHTML = `
+                <table class="table table-striped table-hover mb-0 text-center align-middle">
+                    <thead class="table-dark">
+                        <tr><th>#</th><th>التاريخ</th><th>حضور</th><th>انصراف</th><th class="text-start">السبب</th><th>الخصم</th></tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot class="table-light">
+                        <tr class="fw-bold fs-6">
+                            <td colspan="5" class="text-end px-3">إجمالي الجزاءات (${details.length} يوم):</td>
+                            <td class="text-danger">${total.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>`;
+            }
+            new bootstrap.Modal(modal).show();
+        }
+        {% endif %}
+    </script>
+
+    <!-- Attendance Details Modal for Profile -->
+    {% if emp and emp.attendance_details %}
+    <div class="modal fade" id="attDetailsProfileModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-clock me-2"></i>تفاصيل جزاءات الحضور</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0" id="att_profile_modal_body"></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</body>
+
+</html>

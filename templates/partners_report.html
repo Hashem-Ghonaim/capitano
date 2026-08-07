@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>تقرير تصفية حسابات الشركاء</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+        }
+
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .summary-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-top: 10px;
+        }
+
+        .summary-label {
+            color: #6c757d;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .table thead th {
+            background-color: #2c3e50;
+            color: white;
+            vertical-align: middle;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 12px;
+        }
+
+        .table tbody td {
+            vertical-align: middle;
+            font-weight: 500;
+            padding: 12px;
+        }
+
+        .val-neg {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        .val-pos {
+            color: #27ae60;
+            font-weight: 600;
+        }
+
+        .val-neutral {
+            color: #7f8c8d;
+        }
+
+        .period-profit {
+            background-color: #e8f5e9;
+            font-weight: 700;
+            color: #1e8449;
+        }
+
+        .balance-cell {
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+
+        .btn-action {
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+
+<body class="p-4">
+
+    <div class="container-fluid">
+
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="fw-bold text-dark mb-1"><i class="fas fa-chart-line text-primary me-2"></i> تقرير تصفية
+                    حسابات الشركاء</h3>
+                <p class="text-muted small mb-0">تحليل الأداء المالي، العمولات، والمسحوبات</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-dark fw-bold shadow-sm" onclick="openBulkSettleModal()">
+                    <i class="fas fa-coins me-2"></i> تصفية شاملة (لكل الشركاء)
+                </button>
+                <a href="/reports" class="btn btn-outline-secondary fw-bold">التقارير</a>
+                <a href="/dashboard" class="btn btn-outline-primary fw-bold">الرئيسية</a>
+            </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="card mb-4">
+            <div class="card-body py-3">
+                <form method="GET" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="fw-bold small mb-1 text-muted">من تاريخ</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="far fa-calendar-alt"></i></span>
+                            <input type="date" name="start_date" class="form-control bg-light border-0 fw-bold"
+                                value="{{ start_date }}">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="fw-bold small mb-1 text-muted">إلى تاريخ</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="far fa-calendar-alt"></i></span>
+                            <input type="date" name="end_date" class="form-control bg-light border-0 fw-bold"
+                                value="{{ end_date }}">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">
+                            <i class="fas fa-filter me-2"></i> تحديث التقرير
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+
+
+        <!-- Main Table -->
+        <div class="card shadow-sm border-0 mb-5">
+            <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold m-0 text-dark"><i class="fas fa-list me-2 text-warning"></i> تفاصيل النشاط (الفترة
+                    المحددة)</h5>
+                <span class="badge bg-info text-dark">صافي الربح = الإيراد - المصروفات</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover text-center mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="text-start ps-4">الشريك</th>
+                            <th colspan="3" class="bg-success bg-opacity-75">الإيرادات (Dues)</th>
+                            <th colspan="7" class="bg-danger bg-opacity-75">الخصومات (Deductions)</th>
+                            <th rowspan="2" class="bg-dark text-warning">صافي ربح النشاط<br><small>(بدون
+                                    مسحوبات)</small></th>
+                            <th rowspan="2" class="bg-secondary bg-opacity-50">المسحوبات<br><small>(Withdrawals)</small>
+                            </th>
+                            <th rowspan="2" class="bg-dark text-white">صافي فترة النشاط<br><small>(الربح -
+                                    المسحوبات)</small></th>
+                            <th rowspan="2" class="bg-info text-dark">الرصيد الافتتاحي</th>
+                            <th rowspan="2" class="bg-primary text-white">الرصيد الكلي المستحق<br><small>(شامل
+                                    الافتتاحي)</small></th>
+                        </tr>
+                        <tr>
+                            <th class="small">القطع المباعة</th>
+                            <th class="small">عمولة الشريك (+14ج)</th>
+                            <th class="small">مكافآت شخصية</th>
+                            <th class="small">عمولات مبيعات</th>
+                            <th class="small">خصم فواتير</th>
+                            <th class="small">مرتجعـات</th>
+                            <th class="small">مصاريف أخرى</th>
+                            <th class="small">سلف وجزاءات</th>
+                            <th class="small">مكافآت طاقم</th>
+                            <th class="small">رواتب</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in report %}
+                        <tr>
+                            <td class="text-start ps-4 fw-bold text-dark">
+                                <a href="/profile?user_id={{ row.id }}" class="text-dark text-decoration-none" style="border-bottom: 1px dashed #999;">
+                                    {{ row.name }}
+                                </a>
+                            </td>
+
+                            <!-- Revenue -->
+                            <td class="drilldown-cell" style="cursor:pointer" data-name="{{ row.name }}"
+                                data-label="القطع المباعة (عمولة الشريك)"
+                                data-details="{{ row.gross_comm_details | tojson | forceescape }}">
+                                <span class="badge bg-light text-dark border">{{ row.sold_items }}</span>
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+                            <td class="drilldown-cell val-pos" style="cursor:pointer" data-name="{{ row.name }}"
+                                data-label="عمولة الشريك (+14ج)"
+                                data-details="{{ row.gross_comm_details | tojson | forceescape }}">
+                                {{ row.gross_comm }}
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+                            <td class="drilldown-cell val-pos" style="cursor:pointer" data-name="{{ row.name }}"
+                                data-label="مكافآت شخصية"
+                                data-details="{{ row.personal_bonuses_details | tojson | forceescape }}">
+                                {{ row.personal_bonuses }}
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+
+                            <!-- Deductions -->
+                            <td class="drilldown-cell {{ 'val-neg' if row.sales_rep_comm < 0 else 'val-neutral' }}"
+                                style="cursor:pointer; text-decoration:underline" data-name="{{ row.name }}"
+                                data-label="عمولات مبيعات"
+                                data-details="{{ row.sales_comm_details | tojson | forceescape }}">
+                                {{ row.sales_rep_comm }}
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+                            <td class="drilldown-cell {{ 'val-neg' if row.discounts < 0 else 'val-neutral' }}"
+                                style="cursor:pointer" data-name="{{ row.name }}" data-label="خصم فواتير"
+                                data-details="{{ row.discounts_details | tojson | forceescape }}">
+                                {{ row.discounts }}
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+                            <td class="drilldown-cell {{ 'val-neg' if row.returns < 0 else 'val-neutral' }}"
+                                style="cursor:pointer" data-name="{{ row.name }}" data-label="مرتجعات"
+                                data-details="{{ row.returns_details | tojson | forceescape }}">
+                                {{ row.returns }}
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+                            <td class="drilldown-cell {{ 'val-neg' if row.expenses < 0 else 'val-neutral' }}"
+                                style="cursor:pointer" data-name="{{ row.name }}" data-label="مصاريف أخرى"
+                                data-details="{{ row.expenses_details | tojson | forceescape }}">
+                                {{ row.expenses }}
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+                            <td class="drilldown-cell {{ 'val-neg' if row.staff_other < 0 else 'val-neutral' }}"
+                                style="cursor:pointer" data-name="{{ row.name }}" data-label="سلف وجزاءات"
+                                data-details="{{ row.staff_other_details | tojson | forceescape }}">
+                                {{ row.staff_other }}
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+                            <td class="drilldown-cell {{ 'val-neg' if row.staff_bonuses < 0 else 'val-neutral' }}"
+                                style="cursor:pointer" data-name="{{ row.name }}" data-label="مكافآت"
+                                data-details="{{ row.staff_bonuses_details | tojson | forceescape }}">
+                                {{ row.staff_bonuses }}
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+                            <td class="drilldown-cell {{ 'val-neg' if row.salary_expenses < 0 else 'val-neutral' }}"
+                                style="cursor:pointer" data-name="{{ row.name }}" data-label="رواتب"
+                                data-details="{{ row.salary_expenses_details | tojson | forceescape }}">
+                                {{ row.salary_expenses }}
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+
+                            <!-- Net Profit = formula -->
+                            <td class="period-profit border-start border-end drilldown-formula" style="cursor:pointer"
+                                data-name="{{ row.name }}" data-label="صافي ربح النشاط (المعادلة)" data-formula='[
+                                    {"label":"عمولة الشريك (+14ج)","value":{{ row.gross_comm }}},
+                                    {"label":"مكافآت شخصية","value":{{ row.personal_bonuses }}},
+                                    {"label":"عمولات مبيعات","value":{{ row.sales_rep_comm }}},
+                                    {"label":"خصم فواتير","value":{{ row.discounts }}},
+                                    {"label":"مرتجعات","value":{{ row.returns }}},
+                                    {"label":"مصاريف أخرى","value":{{ row.expenses }}},
+                                    {"label":"سلف وجزاءات","value":{{ row.staff_other }}},
+                                    {"label":"مكافآت طاقم","value":{{ row.staff_bonuses }}},
+                                    {"label":"رواتب","value":{{ row.salary_expenses }}}
+                                ]' data-result="{{ row.period_net_profit }}">
+                                {{ row.period_net_profit }} ج.م
+                                <i class="fas fa-calculator small ms-1 text-muted"></i>
+                            </td>
+
+                            <!-- Withdrawals -->
+                            <td class="text-danger fw-bold bg-light drilldown-cell" style="cursor:pointer"
+                                data-name="{{ row.name }}" data-label="المسحوبات"
+                                data-details="{{ row.withdrawals_details | tojson | forceescape }}">
+                                {{ row.withdrawals_period }}
+                                <i class="fas fa-search-plus small ms-1 text-muted"></i>
+                            </td>
+
+                            <!-- Net Cash = formula -->
+                            <td class="fw-bold {{ 'text-success' if row.period_net_cash >= 0 else 'text-danger' }} drilldown-formula"
+                                style="cursor:pointer" data-name="{{ row.name }}"
+                                data-label="صافي فترة النشاط (المعادلة)" data-formula='[
+                                    {"label":"صافي ربح النشاط","value":{{ row.period_net_profit }}},
+                                    {"label":"المسحوبات","value":-{{ row.withdrawals_period }}}
+                                ]' data-result="{{ row.period_net_cash }}">
+                                {{ row.period_net_cash }} ج.م
+                                <i class="fas fa-calculator small ms-1 text-muted"></i>
+                            </td>
+
+                            <!-- Opening Balance -->
+                            <td
+                                class="fw-bold {{ 'text-success' if row.opening_balance > 0 else 'text-danger' if row.opening_balance < 0 else 'text-muted' }} bg-light position-relative">
+                                {{ row.opening_balance }} ج.م
+                                <button type="button"
+                                    class="btn btn-sm btn-link text-primary position-absolute top-0 start-0 p-1"
+                                    onclick="openOpeningBalanceModal('{{ row.id }}', '{{ row.name }}', {{ row.opening_balance }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </td>
+
+                            <!-- Total Due Balance -->
+                            <td class="fw-bold fs-5 {{ 'text-success' if row.current_balance >= 0 else 'text-danger' }} bg-primary bg-opacity-10 drilldown-formula"
+                                style="cursor:pointer" data-name="{{ row.name }}"
+                                data-label="الرصيد الكلي المستحق (المعادلة)" data-formula='[
+                                    {"label":"صافي فترة النشاط","value":{{ row.period_net_cash }}},
+                                    {"label":"الرصيد الافتتاحي","value":{{ row.opening_balance }}},
+                                    {"label":"أرصدة فترات سابقة","value":{{ row.current_balance - row.period_net_cash - row.opening_balance }}}
+                                ]' data-result="{{ row.current_balance }}">
+                                {{ row.current_balance }} ج.م
+                                <i class="fas fa-calculator small ms-1 text-primary"></i>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="10" class="text-end fw-bold px-4 fs-5">إجمالي صافي أرباح النشاط للفترة:</td>
+                            <td class="fw-bold fs-4 text-success">{{ grand_total }} ج.م</td>
+                            <td colspan="4"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Accounts Summary & Action -->
+        <div class="row g-4">
+            {% for p in report %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 {{ 'border-success' if p.current_balance >= 0 else 'border-danger' }} border-2">
+                    <div class="card-body text-center p-4">
+                        <div class="avatar-circle mb-3 mx-auto bg-dark text-white rounded-circle d-flex align-items-center justify-content-center"
+                            style="width: 60px; height: 60px; font-size: 1.5rem;">
+                            {{ p.name[0] }}
+                        </div>
+                        <h5 class="fw-bold mb-1">{{ p.name }}</h5>
+                        <p class="text-muted small">شريك / مدير</p>
+
+                        <hr class="my-3 opacity-25">
+
+                        <div class="row text-center mb-3">
+                            <div class="col-6 border-end">
+                                <small class="text-muted d-block">إجمالي الأرباح</small>
+                                <span class="text-success fw-bold">{{ p.total_earned }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">إجمالي المسحوبات</small>
+                                <span class="text-danger fw-bold">{{ p.total_withdrawn }}</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-light rounded p-3 mb-3">
+                            <small class="text-muted d-block fw-bold mb-1">الرصيد النهائي الحالي</small>
+                            <h2
+                                class="balance-cell mb-0 {{ 'text-success' if p.current_balance >= 0 else 'text-danger' }}">
+                                {{ p.current_balance }} ج.م
+                            </h2>
+                        </div>
+
+                        <button class="btn btn-dark w-100 fw-bold shadow-sm"
+                            onclick="openSettleModal('{{ p.id }}', '{{ p.name }}', '{{ p.current_balance }}')">
+                            <i class="fas fa-money-bill-wave me-2"></i> تصفية الحساب
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Owners Settlement Cards -->
+            {% for o in owners %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 {{ 'border-success' if o.current_balance >= 0 else 'border-danger' }} border-2">
+                    <div class="card-body text-center p-4">
+                        <div class="avatar-circle mb-3 mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                            style="width: 60px; height: 60px; font-size: 1.5rem;">
+                            {{ o.name[0] }}
+                        </div>
+                        <h5 class="fw-bold mb-1">{{ o.name }}</h5>
+                        <p class="text-muted small">صاحب الشركة</p>
+
+                        <hr class="my-3 opacity-25">
+
+                        <div class="row text-center mb-3">
+                            <div class="col-6 border-end">
+                                <small class="text-muted d-block">إجمالي الأرباح</small>
+                                <span class="text-success fw-bold">{{ o.total_earned }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">إجمالي المسحوبات</small>
+                                <span class="text-danger fw-bold">{{ o.total_withdrawn }}</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-light rounded p-3 mb-3">
+                            <small class="text-muted d-block fw-bold mb-1">الرصيد النهائي الحالي</small>
+                            <h2
+                                class="balance-cell mb-0 {{ 'text-success' if o.current_balance >= 0 else 'text-danger' }}">
+                                {{ o.current_balance }} ج.م
+                            </h2>
+                        </div>
+
+                        <button class="btn btn-dark w-100 fw-bold shadow-sm mb-2"
+                            onclick="openSettleModal('{{ o.id }}', '{{ o.name }}', '{{ o.current_balance }}')">
+                            <i class="fas fa-money-bill-wave me-2"></i> تصفية الحساب
+                        </button>
+                        <a href="/partners/owners_report?start_date={{ start_date }}&end_date={{ end_date }}"
+                            class="btn btn-outline-primary w-100 fw-bold">
+                            <i class="fas fa-chart-bar me-2"></i> تقرير مفصل
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    <!-- Bulk Settle Modal -->
+    <div class="modal fade" id="bulkSettleModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/partners/settle_all" method="POST" class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-calculator me-2"></i> تصفية شاملة (تصفير الحسابات)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <p class="text-muted mb-2">المبلغ الصافي المطلوب لعمل تصفية كاملة لجميع الشركاء:</p>
+                    <h2 class="fw-bold text-success mb-4" id="bulk_total_display">0.00 ج.م</h2>
+
+                    <div class="alert alert-info small text-start">
+                        <i class="fas fa-info-circle me-1"></i> سيتم تسوية المبالغ الدائنة والمدينة، والصرف يمثل الصافي
+                        فقط.
+                    </div>
+
+                    <div class="text-start">
+                        <label class="form-label fw-bold small">خزينة الصرف:</label>
+                        <select name="account_id" class="form-select" required>
+                            <option value="" disabled selected>-- اختر الخزينة --</option>
+                            {% for acc in accounts %}
+                            <option value="{{ acc.id }}">{{ acc.name }} ({{ acc.balance }} ج.م)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-dark fw-bold px-4">تأكيد التصفية</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Individual Settle Modal -->
+    <div class="modal fade" id="settleModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/partners/settle" method="POST" class="modal-content border-0 shadow-lg">
+                <input type="hidden" name="partner_id" id="modal_partner_id">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold">تسجيل تصفية / سحب</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-4">
+                        <h5 class="fw-bold mb-1" id="modal_partner_name">Partner Name</h5>
+                        <div class="badge bg-light text-dark border p-2">الرصيد الحالي: <span
+                                id="modal_balance">0</span> ج.م</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">المبلغ (ج.م)</label>
+                        <input type="number" step="0.01" name="amount"
+                            class="form-control fw-bold form-control-lg text-center" placeholder="0.00" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">الخزينة</label>
+                        <select name="account_id" class="form-select bg-light" required>
+                            {% for acc in accounts %}
+                            <option value="{{ acc.id }}">{{ acc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label fw-bold small">ملاحظات</label>
+                        <input type="text" name="notes" class="form-control" placeholder="مثال: دفعة تحت الحساب">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">تأكيد العملية</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Set Opening Balance Modal -->
+    <div class="modal fade" id="openingBalanceModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/partners/set_opening_balance" method="POST" class="modal-content border-0 shadow-lg">
+                <input type="hidden" name="partner_id" id="obmodal_partner_id">
+                <div class="modal-header bg-info text-dark">
+                    <h5 class="modal-title fw-bold">تعيين الرصيد الافتتاحي</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-4">
+                        <h5 class="fw-bold mb-1" id="obmodal_partner_name">Partner Name</h5>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">المبلغ (ج.م)</label>
+                        <input type="number" step="0.01" name="amount" id="obmodal_amount"
+                            class="form-control fw-bold form-control-lg text-center" placeholder="0.00" required>
+                        <div class="form-text">موجب = له (دائن)، سالب = عليه (مدين)</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="submit" class="btn btn-info w-100 fw-bold shadow-sm">حفظ الرصيد الافتتاحي</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Unified Drill-Down Modal -->
+    <div class="modal fade" id="drilldownModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold" id="drilldown_title">تفاصيل</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0" id="drilldown_body">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openSettleModal(id, name, balance) {
+            document.getElementById('modal_partner_id').value = id;
+            document.getElementById('modal_partner_name').innerText = name;
+            document.getElementById('modal_balance').innerText = balance;
+            new bootstrap.Modal(document.getElementById('settleModal')).show();
+        }
+
+        function openOpeningBalanceModal(id, name, currentBalance) {
+            document.getElementById('obmodal_partner_id').value = id;
+            document.getElementById('obmodal_partner_name').innerText = name;
+            document.getElementById('obmodal_amount').value = currentBalance;
+            new bootstrap.Modal(document.getElementById('openingBalanceModal')).show();
+        }
+
+        function openBulkSettleModal() {
+            let netTotal = 0;
+            const balances = document.querySelectorAll('.balance-cell');
+            balances.forEach(el => {
+                let val = parseFloat(el.innerText.replace(' ج.م', '').replace(/,/g, ''));
+                if (!isNaN(val)) netTotal += val;
+            });
+
+            const display = document.getElementById('bulk_total_display');
+            display.innerText = netTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' ج.م';
+
+            if (netTotal < 0) {
+                display.classList.remove('text-success');
+                display.classList.add('text-danger');
+                display.innerHTML += ' <small class="text-muted fs-6">(على الشركة للشركاء)</small>';
+            } else {
+                display.classList.remove('text-danger');
+                display.classList.add('text-success');
+            }
+
+            new bootstrap.Modal(document.getElementById('bulkSettleModal')).show();
+        }
+
+        // Unified drill-down system
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // 1) Transaction details cells (lists of invoices/transactions)
+            document.body.addEventListener('click', function (e) {
+                const cell = e.target.closest('.drilldown-cell');
+                if (!cell) return;
+
+                const name = cell.getAttribute('data-name');
+                const label = cell.getAttribute('data-label');
+                const detailsJson = cell.getAttribute('data-details');
+
+                try {
+                    const details = JSON.parse(detailsJson);
+                    showTransactionDetails(name, label, details);
+                } catch (err) {
+                    console.error('Error parsing details:', err);
+                }
+            });
+
+            // 2) Formula breakdown cells (calculated fields)
+            document.body.addEventListener('click', function (e) {
+                const cell = e.target.closest('.drilldown-formula');
+                if (!cell) return;
+
+                const name = cell.getAttribute('data-name');
+                const label = cell.getAttribute('data-label');
+                const formulaJson = cell.getAttribute('data-formula');
+                const result = parseFloat(cell.getAttribute('data-result'));
+
+                try {
+                    const formula = JSON.parse(formulaJson);
+                    showFormulaBreakdown(name, label, formula, result);
+                } catch (err) {
+                    console.error('Error parsing formula:', err);
+                }
+            });
+        });
+
+        function showTransactionDetails(name, label, details) {
+            const title = document.getElementById('drilldown_title');
+            const body = document.getElementById('drilldown_body');
+
+            title.innerText = `${label} — ${name}`;
+
+            if (!details || details.length === 0) {
+                body.innerHTML = '<div class="text-center text-muted p-4 fs-5">لا توجد حركات لهذا البند في الفترة المحددة</div>';
+            } else {
+                let total = 0;
+                let rows = '';
+                details.forEach((d, i) => {
+                    total += d.amount;
+                    let invoiceLink = d.invoice_label;
+                    if (d.order_id) {
+                        invoiceLink = `<a href="/invoice/print/${d.order_id}" class="text-decoration-none fw-bold"><i class="fas fa-file-invoice small me-1"></i>${d.invoice_label}</a>`;
+                    }
+                    rows += `
+                    <tr>
+                        <td class="text-muted small">${i + 1}</td>
+                        <td>${d.date}</td>
+                        <td>${invoiceLink}</td>
+                        <td class="text-start small">${d.desc}</td>
+                        <td class="fw-bold ${d.amount < 0 ? 'text-danger' : 'text-success'}">${d.amount.toFixed(2)}</td>
+                    </tr>`;
+                });
+
+                body.innerHTML = `
+                <table class="table table-striped table-hover mb-0 text-center align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th width="5%">#</th>
+                            <th width="15%">التاريخ</th>
+                            <th width="15%">الفاتورة</th>
+                            <th class="text-start" width="45%">البيان</th>
+                            <th width="20%">المبلغ</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot class="table-light">
+                        <tr class="fw-bold fs-6">
+                            <td colspan="4" class="text-end px-3">الإجمالي (${details.length} حركة):</td>
+                            <td class="${total < 0 ? 'text-danger' : 'text-success'}">${total.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>`;
+            }
+
+            new bootstrap.Modal(document.getElementById('drilldownModal')).show();
+        }
+
+        function showFormulaBreakdown(name, label, formula, result) {
+            const title = document.getElementById('drilldown_title');
+            const body = document.getElementById('drilldown_body');
+
+            title.innerText = `${label} — ${name}`;
+
+            let rows = '';
+            formula.forEach((item, i) => {
+                const sign = item.value >= 0 ? '+' : '';
+                const colorClass = item.value >= 0 ? 'text-success' : 'text-danger';
+                rows += `
+                <tr>
+                    <td class="text-end fw-bold pe-3">${item.label}</td>
+                    <td class="fs-5 ${colorClass} fw-bold">${sign}${item.value.toFixed(2)}</td>
+                </tr>`;
+            });
+
+            const resultColor = result >= 0 ? 'text-success' : 'text-danger';
+
+            body.innerHTML = `
+            <div class="p-3">
+                <table class="table table-bordered mb-0 text-center" style="max-width: 500px; margin: auto;">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th width="60%">البند</th>
+                            <th width="40%">القيمة</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot>
+                        <tr class="table-dark">
+                            <td class="text-end fw-bold pe-3 fs-5">الناتج =</td>
+                            <td class="fs-4 ${resultColor} fw-bold">${result.toFixed(2)} ج.م</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>`;
+
+            new bootstrap.Modal(document.getElementById('drilldownModal')).show();
+        }
+    </script>
+
+</html>

@@ -1,0 +1,4 @@
+erp_crm.db
+__pycache__/
+*.pyc
+.env

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة القصات (التصنيع)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .qassa-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .table img { width: 50px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
+        
+        /* ألوان التنبيه حسب الأيام */
+        .row-yellow { background-color: #fff9c4 !important; }
+        .row-orange { background-color: #ffe0b2 !important; }
+        .row-red { background-color: #ffcdd2 !important; }
+        
+        .status-badge { font-size: 0.8rem; padding: 5px 10px; border-radius: 20px; }
+        .history-item { border-right: 3px solid #0d6efd; padding-right: 15px; margin-bottom: 15px; position: relative; }
+        .history-item::before { content: ''; position: absolute; right: -7px; top: 0; width: 12px; height: 12px; background: #0d6efd; border-radius: 50%; }
+        
+        .sticky-header { position: sticky; top: 0; z-index: 100; background: white; padding: 15px 0; border-bottom: 1px solid #eee; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid pb-5">
+    <div class="sticky-header">
+        <div class="container d-flex justify-content-between align-items-center">
+            <h4 class="fw-bold m-0 text-dark"><i class="fas fa-cut me-2 text-primary"></i> إدارة القصات (التصنيع)</h4>
+            <div class="d-flex gap-2">
+                <a href="/dashboard" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-right"></i> لوحة التحكم</a>
+                <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#addQassaModal">
+                    <i class="fas fa-plus-circle me-1"></i> إضافة قصة جديدة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show mb-4 shadow-sm rounded-3">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <style>
+            .nav-tabs .nav-link { font-weight: bold; color: #555; border: none; padding: 12px 25px; }
+            .nav-tabs .nav-link.active { color: #4361ee; border-bottom: 3px solid #4361ee; background: transparent; }
+        </style>
+
+        <ul class="nav nav-tabs mb-4 border-0" id="qassatTab" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" id="active-tab" data-bs-toggle="tab" data-bs-target="#active" type="button">
+                    <i class="fas fa-spinner fa-spin me-1"></i> جارِ التصنيع
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="received-tab" data-bs-toggle="tab" data-bs-target="#received" type="button">
+                    <i class="fas fa-check-double text-success me-1"></i> القصات المستلمة
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="qassatTabContent">
+            <div class="tab-pane fade show active" id="active">
+                <div class="card qassa-card bg-white overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th>صورة</th>
+                            <th>اسم الموديل</th>
+                            <th>الكود</th>
+                            <th>المصنع</th>
+                            <th>الكمية</th>
+                            <th>الأيام</th>
+                            <th>خانة المتابعة</th>
+                            <th>الحالة</th>
+                            <th>إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for q in active_qassat %}
+                        {% set days = (current_time - q.created_at).days %}
+                        <tr class="{% if days > 16 %}row-red{% elif days > 12 %}row-orange{% elif days > 6 %}row-yellow{% endif %}">
+                            <td>
+                                {% if q.product_model_id %}
+                                    <img src="/static/uploads/{{ q.product_model.image }}" alt="img">
+                                {% else %}
+                                    <img src="/static/uploads/{{ q.custom_image }}" alt="img">
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold">
+                                {% if q.product_model_id %}
+                                    {{ q.product_model.name }}
+                                {% else %}
+                                    {{ q.custom_name }}
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-dark">{{ q.code }}</span></td>
+                            <td>
+                                {{ q.factory }}
+                                {% if current_user.role == 'general_manager' or current_user.has_perm('manage_qassat') %}
+                                <a href="#" class="text-primary ms-1" onclick="editFactory({{ q.id }}, '{{ q.factory }}', '{{ q.product_model.name if q.product_model_id else q.custom_name }}')" data-bs-toggle="modal" data-bs-target="#editFactoryModal" title="تعديل اسم المصنع"><i class="fas fa-edit"></i></a>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold text-primary">{{ q.quantity }}</td>
+                            <td>
+                                <span class="badge {% if days > 16 %}bg-danger{% elif days > 12 %}bg-warning text-dark{% elif days > 6 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ days }} يوم
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary rounded-pill px-3 mb-1" onclick="openHistory({{ q.id }})">
+                                    <i class="fas fa-history me-1"></i> متابعة ({{ q.history|length }})
+                                </button>
+                                {% if q.history %}
+                                    {% set last_h = q.history | sort(attribute='created_at', reverse=True) | first %}
+                                    <div class="text-muted text-truncate" style="font-size: 0.75rem; max-width: 120px; margin: 0 auto;" title="{{ last_h.action_detail }}">
+                                        {{ last_h.action_detail }}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-badge {% if q.status == 'جار التصنيع' %}bg-info text-dark{% else %}bg-success text-white{% endif %}">
+                                    {{ q.status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if current_user.username == 'Abo_Eyad' %}
+                                <div class="d-flex justify-content-center gap-1">
+                                    <form action="/qassat/status/{{ q.id }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="status" value="تم الاستلام">
+                                        <button type="submit" class="btn btn-sm btn-success" title="تم الاستلام">
+                                            <i class="fas fa-check-double"></i>
+                                        </button>
+                                    </form>
+                                    <form action="/qassat/delete/{{ q.id }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذه القصة؟');">
+                                        <button type="submit" class="btn btn-sm btn-danger" title="حذف القصة">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <span class="text-muted small">للإدارة فقط</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        
+                        <!-- History Modal for this Qassa -->
+                        <div class="modal fade" id="historyModal-{{ q.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-light">
+                                        <h6 class="modal-title fw-bold">سجل متابعة: {% if q.product_model_id %}{{ q.product_model.name }}{% else %}{{ q.custom_name }}{% endif %}</h6>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="history-list mb-4" style="max-height: 300px; overflow-y: auto;">
+                                            {% for h in q.history|sort(attribute='created_at', reverse=True) %}
+                                            <div class="history-item">
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <span class="fw-bold text-primary small">{{ h.user.fullname }}</span>
+                                                    <span class="text-muted small" style="font-size: 0.7rem;">{{ h.created_at.strftime('%Y-%m-%d %I:%M %p') }}</span>
+                                                </div>
+                                                <div class="small">{{ h.action_detail }}</div>
+                                            </div>
+                                            {% else %}
+                                            <p class="text-center text-muted py-3">لا توجد ملاحظات متابعة بعد.</p>
+                                            {% endfor %}
+                                        </div>
+                                        <hr>
+                                        <form action="/qassat/followup/{{ q.id }}" method="POST">
+                                            <label class="form-label small fw-bold">إضافة تحديث جديد:</label>
+                                            <textarea name="note" class="form-control form-control-sm mb-2" rows="3" placeholder="اكتب ما تم في المتابعة..." required></textarea>
+                                            <button type="submit" class="btn btn-primary btn-sm w-100">حفظ المتابعة</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="py-5 text-center text-muted">
+                                <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
+                                لا توجد قصات نشطة حالياً.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        </div>
+        
+            <div class="tab-pane fade" id="received">
+                <div class="card qassa-card bg-white overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 text-center">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>صورة</th>
+                                    <th>اسم الموديل</th>
+                                    <th>الكود</th>
+                                    <th>المصنع</th>
+                                    <th>الكمية</th>
+                                    <th>تاريخ الاستلام</th>
+                                    <th>خانة المتابعة</th>
+                                    <th>الحالة</th>
+                                    <th>إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for q in received_qassat %}
+                                <tr>
+                                    <td>
+                                        {% if q.product_model_id %}
+                                            <img src="/static/uploads/{{ q.product_model.image }}" alt="img">
+                                        {% else %}
+                                            <img src="/static/uploads/{{ q.custom_image }}" alt="img">
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold">
+                                        {% if q.product_model_id %}
+                                            {{ q.product_model.name }}
+                                        {% else %}
+                                            {{ q.custom_name }}
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-dark">{{ q.code }}</span></td>
+                                    <td>{{ q.factory }}</td>
+                                    <td class="fw-bold text-primary">{{ q.quantity }}</td>
+                                    <td>
+                                        {% set last_h = q.history | sort(attribute='created_at', reverse=True) | first %}
+                                        <span class="badge bg-success">{{ last_h.created_at.strftime('%Y-%m-%d') if last_h else q.created_at.strftime('%Y-%m-%d') }}</span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="openHistory({{ q.id }})">
+                                            <i class="fas fa-history me-1"></i> سجل المتابعة ({{ q.history|length }})
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge bg-success text-white">{{ q.status }}</span>
+                                    </td>
+                                    <td>
+                                        {% if current_user.username == 'Abo_Eyad' %}
+                                        <form action="/qassat/status/{{ q.id }}" method="POST" class="d-inline">
+                                            <input type="hidden" name="status" value="جار التصنيع">
+                                            <button type="submit" class="btn btn-sm btn-warning" title="إرجاع للتصنيع">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
+                                        </form>
+                                        {% else %}
+                                        <span class="text-muted small">---</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                
+                                <!-- History Modal for this Qassa -->
+                                <div class="modal fade" id="historyModal-{{ q.id }}" tabindex="-1">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-light">
+                                                <h6 class="modal-title fw-bold">سجل متابعة: {% if q.product_model_id %}{{ q.product_model.name }}{% else %}{{ q.custom_name }}{% endif %}</h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="history-list mb-4" style="max-height: 300px; overflow-y: auto;">
+                                                    {% for h in q.history|sort(attribute='created_at', reverse=True) %}
+                                                    <div class="history-item">
+                                                        <div class="d-flex justify-content-between mb-1">
+                                                            <span class="fw-bold text-primary small">{{ h.user.fullname }}</span>
+                                                            <span class="text-muted small" style="font-size: 0.7rem;">{{ h.created_at.strftime('%Y-%m-%d %I:%M %p') }}</span>
+                                                        </div>
+                                                        <div class="small">{{ h.action_detail }}</div>
+                                                    </div>
+                                                    {% else %}
+                                                    <p class="text-center text-muted py-3">لا توجد ملاحظات متابعة بعد.</p>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <tr>
+                                    <td colspan="9" class="py-5 text-center text-muted">
+                                        لا توجد قصات مستلمة حتى الآن.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<!-- Add Qassa Modal -->
+<div class="modal fade" id="addQassaModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">إضافة قصة تصنيع جديدة</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/qassat/add" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">نوع الإدخال</label>
+                            <div class="d-flex gap-3 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="entry_type" id="type_existing" value="existing" checked onchange="toggleEntryType()">
+                                    <label class="form-check-label" for="type_existing">منتج موجود بالمخزن</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="entry_type" id="type_new" value="new" onchange="toggleEntryType()">
+                                    <label class="form-check-label" for="type_new">منتج جديد بالكامل</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Existing Product Fields -->
+                        <div class="col-md-6" id="existing_product_div">
+                            <label class="form-label fw-bold">اختر الموديل (أو ابحث بالباركود)</label>
+                            <div class="input-group mb-2">
+                                <input type="text" id="qassa_barcode_search" class="form-control" placeholder="مرر الباركود هنا...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="searchByBarcode()"><i class="fas fa-search"></i></button>
+                            </div>
+                            <small id="barcode_search_msg" class="text-danger d-none"></small>
+                            <select name="product_model_id" id="product_model_id" class="form-select mt-2">
+                                <option value="">-- اختر الموديل --</option>
+                                {% for p in products %}
+                                <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- New Product Fields -->
+                        <div class="col-md-6 d-none" id="new_product_name_div">
+                            <label class="form-label fw-bold">اسم المنتج الجديد</label>
+                            <input type="text" name="custom_name" class="form-control" placeholder="اسم المنتج...">
+                        </div>
+                        <div class="col-md-6 d-none" id="new_product_image_div">
+                            <label class="form-label fw-bold">صورة المنتج</label>
+                            <input type="file" name="custom_image" class="form-control">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">كود القطعة</label>
+                            <input type="text" name="code" class="form-control" placeholder="مثال: A105">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">اسم المصنع</label>
+                            <input type="text" name="factory" class="form-control" placeholder="المصنع..." required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">الكمية المطلوبة</label>
+                            <input type="number" name="quantity" class="form-control" value="1" min="1" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary fw-bold">بدء التصنيع (إضافة القصة)</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Factory Modal -->
+<div class="modal fade" id="editFactoryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">تعديل اسم المصنع</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editFactoryForm" action="" method="POST">
+                <div class="modal-body">
+                    <p class="small text-muted fw-bold" id="editFactoryQassaName"></p>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">اسم المصنع الجديد</label>
+                        <input type="text" name="factory_name" id="editFactoryInput" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary fw-bold">حفظ التعديل</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function openHistory(id) {
+        var myModal = new bootstrap.Modal(document.getElementById('historyModal-' + id));
+        myModal.show();
+    }
+
+    function editFactory(qassaId, currentFactory, qassaName) {
+        document.getElementById('editFactoryForm').action = '/qassat/edit_factory/' + qassaId;
+        document.getElementById('editFactoryInput').value = currentFactory;
+        document.getElementById('editFactoryQassaName').textContent = "القصة: " + qassaName;
+    }
+
+    function searchByBarcode() {
+        const barcode = document.getElementById('qassa_barcode_search').value.trim();
+        const msg = document.getElementById('barcode_search_msg');
+        if (!barcode) return;
+        
+        // Show loading state
+        const btn = document.querySelector('#qassa_barcode_search + button');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        fetch(`/api/get_product_by_barcode?barcode=${barcode}`)
+            .then(res => res.json())
+            .then(data => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                if (data.success) {
+                    msg.classList.add('d-none');
+                    document.getElementById('product_model_id').value = data.model_id;
+                    // Optional: You could show a success toast or flash here
+                } else {
+                    msg.textContent = data.error || 'المنتج غير موجود';
+                    msg.classList.remove('d-none');
+                }
+            })
+            .catch(err => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                msg.textContent = 'حدث خطأ أثناء البحث';
+                msg.classList.remove('d-none');
+            });
+    }
+
+    document.getElementById('qassa_barcode_search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Prevent form submission
+            searchByBarcode();
+        }
+    });
+
+    function toggleEntryType() {
+        const existingRow = document.getElementById('existing_product_div');
+        const newNameDiv = document.getElementById('new_product_name_div');
+        const newImageDiv = document.getElementById('new_product_image_div');
+        
+        if (document.getElementById('type_existing').checked) {
+            existingRow.classList.remove('d-none');
+            newNameDiv.classList.add('d-none');
+            newImageDiv.classList.add('d-none');
+            // reset new fields
+            newNameDiv.querySelector('input').value = '';
+            newImageDiv.querySelector('input').value = '';
+        } else {
+            existingRow.classList.add('d-none');
+            newNameDiv.classList.remove('d-none');
+            newImageDiv.classList.remove('d-none');
+            // reset existing select
+            document.getElementById('product_model_id').value = '';
+            document.getElementById('qassa_barcode_search').value = '';
+        }
+    }
+</script>
+</body>
+</html>

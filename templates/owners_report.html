@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>تقرير أصحاب الشركة</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+        }
+
+        .table th {
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+
+        .table td {
+            font-size: 0.85rem;
+            vertical-align: middle;
+        }
+
+        .drilldown-cell {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .drilldown-cell:hover {
+            background-color: rgba(0, 123, 255, 0.08) !important;
+            text-decoration: underline;
+        }
+
+        .val-neg {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        .val-pos {
+            color: #27ae60;
+            font-weight: 600;
+        }
+
+        .val-neutral {
+            color: #7f8c8d;
+        }
+
+        .stat-card {
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .balance-cell {
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+
+        .btn-action {
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .summary-table td,
+        .summary-table th {
+            padding: 10px 16px;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+
+<body class="p-4">
+
+    <div class="container-fluid">
+
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="fw-bold text-dark mb-1"><i class="fas fa-building text-primary me-2"></i> تقرير الشراكة —
+                    أصحاب الشركة</h3>
+                <p class="text-muted small mb-0">تقرير الأرباح المشتركة (ربح مبيعات الشركة بالكامل - مصاريف الشركة وعمولات المدراء)</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="/partners/report?start_date={{ start_date }}&end_date={{ end_date }}"
+                    class="btn btn-outline-secondary fw-bold">
+                    <i class="fas fa-arrow-right me-1"></i> تقرير الشركاء
+                </a>
+                <a href="/dashboard" class="btn btn-outline-primary fw-bold">
+                    <i class="fas fa-home me-1"></i> الرئيسية
+                </a>
+            </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="card mb-4">
+            <div class="card-body py-3">
+                <form method="GET" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="fw-bold small mb-1 text-muted">من تاريخ</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="far fa-calendar-alt"></i></span>
+                            <input type="date" name="start_date" class="form-control bg-light border-0 fw-bold"
+                                value="{{ start_date }}">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="fw-bold small mb-1 text-muted">إلى تاريخ</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="far fa-calendar-alt"></i></span>
+                            <input type="date" name="end_date" class="form-control bg-light border-0 fw-bold"
+                                value="{{ end_date }}">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">
+                            <i class="fas fa-filter me-2"></i> تحديث التقرير
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="stat-card bg-white shadow-sm">
+                    <i class="fas fa-boxes fa-2x text-info mb-2"></i>
+                    <h6 class="text-muted small fw-bold mb-1">عدد القطع المباعة (الشركة)</h6>
+                    <h3 class="fw-bold text-dark mb-0">{{ total_items }}</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card bg-white shadow-sm">
+                    <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                    <h6 class="text-muted small fw-bold mb-1">إجمالي ربح المكسب في القطعة</h6>
+                    <h3 class="fw-bold text-success mb-0">{{ total_markup_profit }} ج.م</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card bg-white shadow-sm">
+                    <i class="fas fa-minus-circle fa-2x text-danger mb-2"></i>
+                    <h6 class="text-muted small fw-bold mb-1">إجمالي المصروفات والخصومات</h6>
+                    <h3 class="fw-bold text-danger mb-0">-{{ total_deductions }} ج.م</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card bg-white shadow-sm">
+                    <i class="fas fa-coins fa-2x text-primary mb-2"></i>
+                    <h6 class="text-muted small fw-bold mb-1">صافي ربح الشراكة</h6>
+                    <h3 class="fw-bold {{ 'text-success' if partnership_net_profit >= 0 else 'text-danger' }} mb-0">{{
+                        partnership_net_profit }} ج.م</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Partnership Breakdown Table -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-dark text-white py-3">
+                <h5 class="fw-bold m-0"><i class="fas fa-calculator me-2"></i> تفاصيل حساب الشراكة (الفترة المحددة)</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-bordered table-hover text-center align-middle mb-0 summary-table">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th width="60%">البند</th>
+                            <th width="20%">الإجمالي (الشراكة)</th>
+                            <th width="20%">نصيب كل شريك (50%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- الإيرادات -->
+                        <tr class="table-light">
+                            <td class="text-end fw-bold pe-4"><i class="fas fa-arrow-up text-success me-2"></i>إجمالي
+                                ربح المكسب في القطعة (سعر بيع - سعر شراء)</td>
+                            <td class="val-pos fs-5">{{ total_markup_profit }} ج.م</td>
+                            <td class="val-pos">{{ (total_markup_profit / 2) | round(2) }} ج.م</td>
+                        </tr>
+                        <!-- المصروفات -->
+                        <tr>
+                            <td class="text-end pe-4 drilldown-cell" data-label="عمولات مندوبين"
+                                data-details='{{ deduction_details.sales_comm | tojson }}'><i
+                                    class="fas fa-users text-danger me-2"></i>عمولات مندوبين</td>
+                            <td class="val-neg">-{{ sales_rep_comm }} ج.م</td>
+                            <td class="val-neg">-{{ (sales_rep_comm / 2) | round(2) }} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-end pe-4 drilldown-cell" data-label="خصم فواتير"
+                                data-details='{{ deduction_details.discounts | tojson }}'><i
+                                    class="fas fa-receipt text-danger me-2"></i>خصم فواتير</td>
+                            <td class="val-neg">-{{ discounts }} ج.م</td>
+                            <td class="val-neg">-{{ (discounts / 2) | round(2) }} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-end pe-4 drilldown-cell" data-label="مرتجعات"
+                                data-details='{{ deduction_details.returns | tojson }}'><i
+                                    class="fas fa-undo text-danger me-2"></i>مرتجعات</td>
+                            <td class="val-neg">-{{ returns }} ج.م</td>
+                            <td class="val-neg">-{{ (returns / 2) | round(2) }} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-end pe-4 drilldown-cell" data-label="مصاريف أخرى"
+                                data-details='{{ deduction_details.expenses | tojson }}'><i
+                                    class="fas fa-money-bill-wave text-danger me-2"></i>مصاريف أخرى</td>
+                            <td class="val-neg">-{{ expenses }} ج.م</td>
+                            <td class="val-neg">-{{ (expenses / 2) | round(2) }} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-end pe-4 drilldown-cell" data-label="ملف وجزاءات"
+                                data-details='{{ deduction_details.staff_other | tojson }}'><i
+                                    class="fas fa-file-alt text-danger me-2"></i>ملف وجزاءات</td>
+                            <td class="val-neg">-{{ staff_other }} ج.م</td>
+                            <td class="val-neg">-{{ (staff_other / 2) | round(2) }} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-end pe-4 drilldown-cell" data-label="مكافآت طاقم"
+                                data-details='{{ deduction_details.staff_bonuses | tojson }}'><i
+                                    class="fas fa-gift text-danger me-2"></i>مكافآت طاقم</td>
+                            <td class="val-neg">-{{ staff_bonuses }} ج.م</td>
+                            <td class="val-neg">-{{ (staff_bonuses / 2) | round(2) }} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-end pe-4 drilldown-cell" data-label="رواتب"
+                                data-details='{{ deduction_details.salary | tojson }}'><i
+                                    class="fas fa-wallet text-danger me-2"></i>رواتب</td>
+                            <td class="val-neg">-{{ salary_expenses }} ج.م</td>
+                            <td class="val-neg">-{{ (salary_expenses / 2) | round(2) }} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-end pe-4"><i class="fas fa-truck text-danger me-2"></i>عمولات شحن إضافية</td>
+                            <td class="val-neg">-{{ shipping_extra }} ج.م</td>
+                            <td class="val-neg">-{{ (shipping_extra / 2) | round(2) }} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-end pe-4"><i class="fas fa-user-tie text-danger me-2"></i>عمولات المدراء الآخرين</td>
+                            <td class="val-neg">-{{ manager_commissions }} ج.م</td>
+                            <td class="val-neg">-{{ (manager_commissions / 2) | round(2) }} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td class="text-end pe-4"><i class="fas fa-star text-danger me-2"></i>مكافآت موظفين (HR)</td>
+                            <td class="val-neg">-{{ hr_bonuses }} ج.م</td>
+                            <td class="val-neg">-{{ (hr_bonuses / 2) | round(2) }} ج.م</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-dark">
+                            <td class="text-end fw-bold pe-4 fs-5"><i class="fas fa-equals me-2"></i>صافي ربح الشراكة
+                            </td>
+                            <td
+                                class="fs-5 fw-bold {{ 'text-success' if partnership_net_profit >= 0 else 'text-danger' }}">
+                                {{ partnership_net_profit }} ج.م</td>
+                            <td class="fs-5 fw-bold {{ 'text-success' if per_owner_profit >= 0 else 'text-danger' }}">{{
+                                per_owner_profit }} ج.م</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Owner Cards -->
+        <h4 class="fw-bold mb-3"><i class="fas fa-user-tie text-primary me-2"></i> حسابات الشركاء</h4>
+        <div class="row g-4 mb-4">
+            {% for o in owners %}
+            <div class="col-md-6">
+                <div class="card h-100 {{ 'border-success' if o.current_balance >= 0 else 'border-danger' }} border-2">
+                    <div class="card-body text-center p-4">
+                        <div class="avatar-circle mb-3 mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                            style="width: 60px; height: 60px; font-size: 1.5rem;">
+                            {{ o.name[0] }}
+                        </div>
+                        <h5 class="fw-bold mb-1">{{ o.name }}</h5>
+                        <p class="text-muted small">صاحب الشركة</p>
+
+                        <hr class="my-3 opacity-25">
+
+                        <div class="row text-center mb-3">
+                            <div class="col-4 border-end">
+                                <small class="text-muted d-block">نصيبه من الربح</small>
+                                <span class="text-success fw-bold">{{ per_owner_profit }} ج.م</span>
+                            </div>
+                            <div class="col-4 border-end">
+                                <small class="text-muted d-block">مسحوبات الفترة</small>
+                                <span class="text-danger fw-bold drilldown-cell" style="cursor:pointer;"
+                                    data-label="مسحوبات — {{ o.name }}"
+                                    data-details='{{ o.withdrawals_details | tojson }}'>
+                                    {{ o.withdrawals_period }} ج.م
+                                </span>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted d-block">إجمالي المسحوبات</small>
+                                <span class="text-danger fw-bold">{{ o.total_withdrawn }} ج.م</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-light rounded p-3 mb-3">
+                            <small class="text-muted d-block fw-bold mb-1">الرصيد النهائي الحالي</small>
+                            <h2
+                                class="balance-cell mb-0 {{ 'text-success' if o.current_balance >= 0 else 'text-danger' }}">
+                                {{ o.current_balance }} ج.م
+                            </h2>
+                        </div>
+
+                        <button class="btn btn-dark w-100 fw-bold shadow-sm"
+                            onclick="openSettleModal('{{ o.id }}', '{{ o.name }}', '{{ o.current_balance }}')">
+                            <i class="fas fa-money-bill-wave me-2"></i> تصفية الحساب
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    <!-- Individual Settle Modal -->
+    <div class="modal fade" id="settleModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/partners/settle" method="POST" class="modal-content border-0 shadow-lg">
+                <input type="hidden" name="partner_id" id="modal_partner_id">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold">تسجيل تصفية / سحب</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-4">
+                        <h5 class="fw-bold mb-1" id="modal_partner_name">Partner Name</h5>
+                        <div class="badge bg-light text-dark border p-2">الرصيد الحالي: <span
+                                id="modal_balance">0</span> ج.م</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">المبلغ (ج.م)</label>
+                        <input type="number" step="0.01" name="amount"
+                            class="form-control fw-bold form-control-lg text-center" placeholder="0.00" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">الخزينة</label>
+                        <select name="account_id" class="form-select bg-light" required>
+                            {% for acc in accounts %}
+                            <option value="{{ acc.id }}">{{ acc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label fw-bold small">ملاحظات</label>
+                        <input type="text" name="notes" class="form-control" placeholder="مثال: دفعة تحت الحساب">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">تأكيد العملية</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Drill-Down Modal -->
+    <div class="modal fade" id="drilldownModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold" id="drilldown_title">تفاصيل</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0" id="drilldown_body">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openSettleModal(id, name, balance) {
+            document.getElementById('modal_partner_id').value = id;
+            document.getElementById('modal_partner_name').innerText = name;
+            document.getElementById('modal_balance').innerText = balance;
+            new bootstrap.Modal(document.getElementById('settleModal')).show();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.body.addEventListener('click', function (e) {
+                const cell = e.target.closest('.drilldown-cell');
+                if (!cell) return;
+
+                const label = cell.getAttribute('data-label');
+                const detailsJson = cell.getAttribute('data-details');
+
+                try {
+                    const details = JSON.parse(detailsJson);
+                    showTransactionDetails(label, details);
+                } catch (err) {
+                    console.error('Error parsing details:', err);
+                }
+            });
+        });
+
+        function showTransactionDetails(label, details) {
+            const title = document.getElementById('drilldown_title');
+            const body = document.getElementById('drilldown_body');
+
+            title.innerText = label;
+
+            if (!details || details.length === 0) {
+                body.innerHTML = '<div class="text-center text-muted p-4 fs-5">لا توجد حركات لهذا البند في الفترة المحددة</div>';
+            } else {
+                let total = 0;
+                let rows = '';
+                details.forEach((d, i) => {
+                    total += d.amount;
+                    let invoiceLink = d.invoice_label;
+                    if (d.order_id) {
+                        invoiceLink = `<a href="/invoice/print/${d.order_id}" class="text-decoration-none fw-bold"><i class="fas fa-file-invoice small me-1"></i>${d.invoice_label}</a>`;
+                    }
+                    rows += `
+                    <tr>
+                        <td class="text-muted small">${i + 1}</td>
+                        <td>${d.date}</td>
+                        <td>${invoiceLink}</td>
+                        <td class="text-start small">${d.desc}</td>
+                        <td class="fw-bold ${d.amount < 0 ? 'text-danger' : 'text-success'}">${d.amount.toFixed(2)}</td>
+                    </tr>`;
+                });
+
+                body.innerHTML = `
+                <table class="table table-striped table-hover mb-0 text-center align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th width="5%">#</th>
+                            <th width="15%">التاريخ</th>
+                            <th width="15%">الفاتورة</th>
+                            <th class="text-start" width="45%">البيان</th>
+                            <th width="20%">المبلغ</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot class="table-light">
+                        <tr class="fw-bold fs-6">
+                            <td colspan="4" class="text-end px-3">الإجمالي (${details.length} حركة):</td>
+                            <td class="${total < 0 ? 'text-danger' : 'text-success'}">${total.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>`;
+            }
+
+            new bootstrap.Modal(document.getElementById('drilldownModal')).show();
+        }
+    </script>
+
+</html>

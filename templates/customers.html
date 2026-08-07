@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة العملاء</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        .avatar-circle {
+            width: 40px; height: 40px;
+            background-color: #6f42c1; color: white;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 1.1rem; margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-light bg-white shadow-sm px-4 py-3 mb-4">
+    <div class="d-flex align-items-center gap-3 w-100">
+        <a href="/dashboard" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+            <i class="fas fa-arrow-right"></i> الرئيسية
+        </a>
+        <h4 class="m-0 fw-bold text-dark">👥 دليل العملاء</h4>
+    </div>
+</nav>
+
+<div class="container-fluid px-4">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm p-3 h-100 d-flex flex-row align-items-center justify-content-between">
+                <div>
+                    <h5 class="fw-bold text-muted mb-1">إجمالي العملاء المسجلين</h5>
+                    <h2 class="text-primary fw-bold m-0">{{ customers|length }}</h2>
+                </div>
+                <div class="bg-light p-3 rounded-circle text-primary">
+                    <i class="fas fa-users fa-2x"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <button class="btn btn-primary w-100 h-100 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                <i class="fas fa-user-plus fa-2x mb-2 d-block"></i>
+                إضافة عميل جديد
+            </button>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="searchInput" class="form-control border-0 bg-light" placeholder="بحث بالاسم أو الهاتف..." onkeyup="filterTable()">
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center" id="customersTable">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-start ps-4">العميل</th>
+                        <th>رقم الهاتف</th>
+                        <th>العنوان</th>
+                        <th>المديونية (الرصيد)</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in customers %}
+                    <tr>
+                        <td class="text-start ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle">{{ c.name[0] }}</div>
+                                <div>
+                                    <div class="fw-bold">{{ c.name }}</div>
+                                    <small class="text-muted" style="font-size: 0.75rem;">ID: {{ c.id }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge bg-light text-dark border">{{ c.phone }}</span></td>
+                        <td class="text-muted small">{{ c.address }}</td>
+                        <td>
+                            {% if c.balance and c.balance > 0 %}
+                                <span class="text-danger fw-bold">{{ c.balance }} ج.م</span>
+                            {% elif c.balance and c.balance < 0 %}
+                                <span class="text-success fw-bold">{{ -c.balance }} ج.م (له)</span>
+                            {% else %}
+                                <span class="text-muted">0.0 ج.م</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/customers/{{ c.id }}" class="btn btn-sm btn-outline-dark" title="الملف الشخصي">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ c.id }}" title="تعديل">
+                                <i class="fas fa-pen"></i>
+                            </button>
+
+                            <div class="modal fade" id="editModal{{ c.id }}" tabindex="-1">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <form action="/customer/edit/{{ c.id }}" method="POST" class="modal-content">
+                                        <div class="modal-header bg-light">
+                                            <h6 class="modal-title fw-bold">تعديل بيانات: {{ c.name }}</h6>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold small">اسم العميل</label>
+                                                <input type="text" name="name" class="form-control" value="{{ c.name }}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold small">رقم الهاتف</label>
+                                                <input type="text" name="phone" class="form-control" value="{{ c.phone }}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold small">العنوان</label>
+                                                <input type="text" name="address" class="form-control" placeholder="العنوان" required>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer p-2">
+                                            <button type="submit" class="btn btn-primary w-100 fw-bold">حفظ التغييرات</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="py-5 text-muted">لا يوجد عملاء مسجلين</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addCustomerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="/customers/add" method="POST" class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">إضافة عميل جديد</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="fw-bold mb-1">اسم العميل</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold mb-1">رقم الهاتف</label>
+                    <input type="text" name="phone" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold mb-1">العنوان <span class="text-danger">*</span></label>
+                    <input type="text" name="address" class="form-control" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary w-100 fw-bold">حفظ العميل</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function filterTable() {
+        var input = document.getElementById("searchInput");
+        var filter = input.value.toUpperCase();
+        var table = document.getElementById("customersTable");
+        var tr = table.getElementsByTagName("tr");
+
+        for (var i = 0; i < tr.length; i++) {
+            var tdName = tr[i].getElementsByTagName("td")[0];
+            var tdPhone = tr[i].getElementsByTagName("td")[1];
+            if (tdName || tdPhone) {
+                var txtName = tdName.textContent || tdName.innerText;
+                var txtPhone = tdPhone.textContent || tdPhone.innerText;
+                if (txtName.toUpperCase().indexOf(filter) > -1 || txtPhone.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{{ 'عرض سعر #' if order.is_proforma else 'فاتورة #' }}{{ order.id }}</title>
+
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/static/icon.png">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html2canvas for taking a screenshot of the invoice -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --main-color: {
+                    {
+                    theme_color or '#0d6efd'
+                }
+            }
+
+            ;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: #555;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* حاوية الفاتورة - ورقة A4 ثابتة */
+        .invoice-paper {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 20px auto;
+            padding: 15mm;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            box-sizing: border-box;
+            border-top: 10px solid var(--main-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            /* لدفع الفوتر للأسفل */
+        }
+
+        /* إصلاح للموبايل */
+        .mobile-scroll-wrapper {
+            overflow-x: auto;
+            width: 100%;
+            padding-bottom: 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .header-grid {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .custom-table th {
+            background-color: #f2f2f2 !important;
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .custom-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .totals-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            font-weight: bold;
+        }
+
+        .logo-img {
+            max-height: 100px;
+            max-width: 250px;
+            object-fit: contain;
+        }
+
+        .returned-stamp {
+            position: absolute;
+            top: 40%;
+            left: 25%;
+            border: 5px solid #dc3545;
+            color: #dc3545;
+            font-size: 5rem;
+            font-weight: bold;
+            padding: 10px 40px;
+            text-transform: uppercase;
+            transform: rotate(-30deg);
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        @media print {
+            body {
+                background: white;
+                width: 210mm;
+                height: 297mm;
+            }
+
+            .invoice-paper {
+                margin: 0;
+                width: 100%;
+                min-height: 100%;
+                box-shadow: none;
+                border: none;
+                padding: 10mm;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .mobile-scroll-wrapper {
+                overflow: visible;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="no-print text-center py-3 bg-light border-bottom mb-3 sticky-top shadow-sm">
+        <div class="container d-flex justify-content-center flex-wrap gap-2">
+            <button onclick="window.print()" class="btn btn-secondary fw-bold"><i class="fas fa-print"></i>
+                طباعة</button>
+            <button onclick="downloadPDF()" class="btn btn-primary fw-bold"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button onclick="shareInvoiceWhatsApp(this)" class="btn btn-info text-white fw-bold"><i
+                    class="fas fa-image"></i> حفظ كصورة</button>
+            <button onclick="sendWhatsApp()" class="btn btn-success fw-bold"><i class="fab fa-whatsapp"></i>
+                واتساب</button>
+            {% if order.is_proforma %}
+            <div class="vr mx-2"></div>
+            <a href="/invoice/convert/{{ order.id }}" class="btn btn-warning fw-bold"
+                onclick="return confirm('تأكيد التحويل؟')">اعتماد</a>
+            <a href="{{ url_for('pos', proforma_id=order.id) }}" class="btn btn-warning fw-bold no-print"
+                onclick="return confirm('هل تريد العودة لشاشة البيع لتعديل عرض السعر هذا؟')">
+                تعديل عرض السعر
+            </a>
+            <a href="/invoice/delete/{{ order.id }}" class="btn btn-danger fw-bold"
+                onclick="return confirm('حذف؟')">حذف</a>
+            {% endif %}
+            {% if not order.is_proforma %}
+            {% if order.amount_due and order.amount_due > 0 %}
+            <button class="btn btn-outline-success fw-bold" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
+                <i class="fas fa-money-bill-wave"></i> دفعة إضافية
+            </button>
+            {% endif %}
+            {% if not order.is_shipping %}
+            <button class="btn btn-outline-info fw-bold" data-bs-toggle="modal" data-bs-target="#convertShippingModal">
+                <i class="fas fa-truck"></i> تحويل لشحن
+            </button>
+            {% endif %}
+            {% if not order.return_invoices or order.return_invoices|length == 0 %}
+            {% if current_user.has_perm('revert_to_proforma') %}
+            <form action="/invoice/{{ order.id }}/revert_to_proforma" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-warning fw-bold text-dark shadow-sm" onclick="return confirm('⚠️ هل أنت متأكد؟ سيتم إرجاع المخزون وعكس كل الحسابات (الخزينة والعملاء والشركاء) بالكامل وتحويل الفاتورة لمسودة.\n\nيمكنك الدخول عليها من شاشة الـ POS لتعديل اللي إنت عاوزه وتأكيدها بشكل صحيح تماماً.')">
+                    <i class="fas fa-undo"></i> إرجاع لمسودة (لتعديل الفاتورة للصح)
+                </button>
+            </form>
+            {% endif %}
+            {% endif %}
+            {% endif %}
+            <a href="/pos" class="btn btn-dark">عودة</a>
+        </div>
+    </div>
+
+    <div class="mobile-scroll-wrapper">
+        <div class="invoice-paper" id="invoiceElement">
+
+            <div>
+                {% if order.return_invoices and order.return_invoices|length > 0 %}
+                <div class="returned-stamp">مرتجع</div>
+                {% endif %}
+
+                {% if order.is_proforma %}
+                <div class="text-center mb-3">
+                    <span class="badge bg-warning text-dark fs-6 border border-dark px-4 py-2">مسودة / عرض سعر</span>
+                </div>
+                {% endif %}
+
+                <div class="header-grid">
+                    <div style="width: 40%; text-align: right;">
+                        {% if global_company_logo %}
+                        <img src="/static/uploads/{{ global_company_logo }}" class="logo-img" crossorigin="anonymous">
+                        {% elif company_logo %}
+                        <img src="/static/uploads/{{ company_logo }}" class="logo-img" crossorigin="anonymous">
+                        {% else %}
+                        <h2 class="fw-bold text-primary m-0">اسم الشركة</h2>
+                        {% endif %}
+                    </div>
+                    <div style="width: 60%; text-align: center;">
+                        <h3 class="fw-bold m-0 text-dark">مجموعة شركات ومصانع فور برزر</h3>
+                        {% if order.sales_rep.phone %}
+                        <div class="mt-1 text-muted small">للتواصل: {{ order.sales_rep.phone }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span>العميل:</span> <span class="text-primary">{{ order.customer.name }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span>التاريخ:</span> <span>{{ order.date.strftime('%Y/%m/%d') }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span>رقم الهاتف:</span> <span id="custPhone">{{ order.customer.phone }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span>رقم الفاتورة:</span> <span>#<span id="orderId">{{ order.id }}</span></span>
+                    </div>
+                    <div class="info-item" style="grid-column: span 2;">
+                        <span>العنوان:</span> <span>{{ order.customer.address or '---' }}</span>
+                    </div>
+                    {% if order.is_shipping %}
+                    <div class="info-item"
+                        style="grid-column: span 2; border-top: 1px dashed #ccc; padding-top: 5px; margin-top: 5px;">
+                        <span class="text-danger">
+                            شركة الشحن: {{ order.courier.name }}
+                            {% if order.courier.phone %} - {{ order.courier.phone }} {% endif %}
+                        </span>
+
+                        <span>(بوليصة: {{ order.waybill_no or '---' }})</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th width="5%">م</th>
+                            <th width="35%">الصنف</th>
+                            <th width="10%">الكمية</th>
+                            <th width="12%">السعر</th>
+                            <th width="13%">الإجمالي</th>
+                            <th width="10%">كود</th>
+
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        {% for item in order.items %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td class="text-end pe-2">
+                                {% if item.variant %}
+                                <span class="fw-bold">{{ item.variant.model.name }}</span>
+                                <br>
+                                <small class="text-muted" style="font-size: 11px;">({{ item.variant.model.category.name
+                                    }})</small>
+                                {% else %}
+                                <span class="fw-bold text-danger">منتج محذوف</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.unit_price }}</td>
+                            <td>{{ item.total_price }}</td>
+                            <td>{{ item.variant_id }}</td>
+
+                        </tr>
+                        {% endfor %}
+
+                        {% if order.items|length < 5 %} {% for i in range(5 - order.items|length) %} <tr
+                            style="height: 35px;">
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            </tr>
+                            {% endfor %}
+                            {% endif %}
+                    </tbody>
+                </table>
+
+                <div style="display: flex; margin-top: 20px;">
+                    <div style="width: 60%; padding-right: 10px;">
+                        <div class="border p-2 text-center" style="width: 120px; border-radius: 8px;">
+                            <div class="small fw-bold text-muted">عدد القطع</div>
+                            <div class="fs-4 fw-bold">{{ order.items|sum(attribute='quantity') }}</div>
+                        </div>
+
+                        <div class="mt-3" style="font-size: 13px; line-height: 1.8;">
+                            <strong>مبيعات:</strong> <span class="text-primary fw-bold">{{ order.sales_rep.emp_code
+                                }}</span> <br>
+                            <strong>تعبئة:</strong>
+                            <span class="text-success fw-bold">{{ order.packer.emp_code if order.packer else '---'
+                                }}</span>
+                            {% if not order.is_proforma %}
+                            <a href="#" class="no-print ms-1 text-primary" data-bs-toggle="modal"
+                                data-bs-target="#changePackerModal" title="تعديل المُعبئ">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% endif %}
+                            <br>
+                            <span class="text-muted" style="font-size: 11px;">{{ order.date.strftime('%I:%M %p')
+                                }}</span>
+                        </div>
+
+                        {% if order.return_invoices and order.return_invoices|length > 0 %}
+                        <div class="alert alert-danger p-2 mt-3" style="font-size: 12px;">
+                            <strong><i class="fas fa-undo"></i> يوجد ({{ order.return_invoices|length }}) مرتجع لهذه الفاتورة</strong>
+                            {% for ret in order.return_invoices %}
+                            <div class="mt-2 p-2 bg-white rounded border border-danger">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="fw-bold text-danger">مرتجع #{{ ret.id }}</span>
+                                    <span class="text-muted small">{{ ret.date.strftime('%Y-%m-%d %I:%M %p') }}</span>
+                                </div>
+                                {% if return_details %}
+                                <table class="table table-sm table-bordered mb-1" style="font-size: 11px;">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>الصنف</th>
+                                            <th class="text-center">الكمية</th>
+                                            <th class="text-center">السعر</th>
+                                            <th class="text-center">الإجمالي</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for rd in return_details %}
+                                        <tr>
+                                            <td>{{ rd.name }}</td>
+                                            <td class="text-center">{{ rd.qty }}</td>
+                                            <td class="text-center">{{ rd.unit_price }}</td>
+                                            <td class="text-center fw-bold text-danger">{{ rd.total }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                        <tr class="table-danger fw-bold">
+                                            <td>إجمالي المرتجع</td>
+                                            <td class="text-center">{{ return_details|sum(attribute='qty') }}</td>
+                                            <td></td>
+                                            <td class="text-center">{{ return_details|sum(attribute='total') }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                {% endif %}
+                                {% if ret.shipping_loss > 0 or ret.missing_items_cost > 0 %}
+                                <div class="small text-muted">
+                                    {% if ret.shipping_loss > 0 %}خسائر شحن: {{ ret.shipping_loss }} ج | {% endif %}
+                                    {% if ret.missing_items_cost > 0 %}توالف/نواقص: {{ ret.missing_items_cost }} ج{% endif %}
+                                </div>
+                                {% endif %}
+                                {% if ret.notes %}<div class="small text-muted mt-1">ملاحظات: {{ ret.notes }}</div>{% endif %}
+                                <div class="small text-muted">بواسطة: {{ ret.creator.fullname if ret.creator else '---' }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div style="width: 40%;">
+                        <table class="totals-table" style="width: 100%;">
+                            <tr>
+                                <td>الإجمالي</td>
+                                <td class="text-end">{{ order.total_amount }}</td>
+                            </tr>
+                            <tr>
+                                <td>الخصم
+
+                                </td>
+                                <td class="text-end">{{ order.discount }}</td>
+                            </tr>
+                            {% if order.shipping_fee and order.shipping_fee > 0 and order.shipping_paid_by == 'customer'
+                            %}
+                            <tr style="background-color: #e8f4fd;">
+                                <td class="text-info">🚚 شحن (على العميل)</td>
+                                <td class="text-end text-info">{{ order.shipping_fee }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td>المدفوع</td>
+                                <td class="text-end">{{ order.paid_upfront }}</td>
+                            </tr>
+                            {% if order.paid_upfront > 0 and transactions %}
+                            {% for trans in transactions %}
+                            <tr class="no-print"
+                                style="background-color: #fce4e4; font-size: 0.85rem; border-left: 3px solid #dc3545;">
+                                <td class="text-danger ps-2"><i class="fas fa-arrow-down fa-xs mt-1"></i> عبر خزينة: {{
+                                    trans.account.name if trans.account else 'غير محدد' }}</td>
+                                <td class="text-end text-danger fw-bold">{{ trans.amount }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% endif %}
+                            <tr style="background-color: #eee;">
+                                <td class="fs-6">الصافي النهائي</td>
+                                {% set customer_ship = order.shipping_fee if (order.shipping_fee and order.shipping_paid_by == 'customer') else 0 %}
+                                {% set computed_final = order.total_amount - (order.discount or 0) + customer_ship %}
+                                <td class="text-end fs-5" id="finalTotal">{{ computed_final - order.paid_upfront }}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-auto">
+                <div class="text-center border-top pt-2">
+
+                    <div class="w-100 mt-2 mb-2">
+                        <p class="mb-0 fw-bold"
+                            style="font-size: 0.8rem; color: #333; background: #f8f8f8; border: 1px solid #bbb; padding: 6px 16px; border-radius: 6px; display: inline-block;">
+                            ⚠️ الإستبدال عيوب مصنع فقط خلال 14 يوم من تاريخ الفاتورة بشرط سلامة المنتج
+                        </p>
+                    </div>
+                    <p class="fw-bold mt-2 mb-0" style="font-size: 0.85rem;">شكراً لثقتكم في مجموعة فور برزر ❤️</p>
+                    <small class="text-muted">نسعى دائماً لخدمتكم بأفضل جودة</small>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Modals -->
+    {% if not order.is_proforma %}
+    <!-- Modal: Change Packer -->
+    <div class="modal fade" id="changePackerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="/invoice/{{ order.id }}/change_packer" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">تعديل القائم بالتعبئة</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">اختر الموظف (المعبئ):</label>
+                            <select name="packer_id" class="form-select" required>
+                                <option value="" disabled selected>-- اختر المُعبئ --</option>
+                                {% for emp in all_employees %}
+                                <option value="{{ emp.id }}" {% if order.packer_id==emp.id %}selected{% endif %}>
+                                    {{ emp.fullname }} ({{ emp.emp_code }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-primary fw-bold">حفظ التعديل</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Item -->
+    <div class="modal fade" id="addItemModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="/invoice/{{ order.id }}/add_item" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">إضافة صنف للفاتورة</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-end">
+                        <div class="alert alert-warning py-1 small">
+                            <strong>ملاحظة هامة:</strong> إضافة الصنف ستؤدي إلى خصمه من المخزن وزيادة مديونية العميل
+                            وإجمالي الفاتورة فوراً.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">الصنف:</label>
+                            <select name="variant_id" class="form-select" id="newItemSelect" required>
+                                <option value="" disabled selected>-- ابحث واختر الصنف --</option>
+                                {% for v in all_variants %}
+                                <option value="{{ v.id }}" data-stock="{{ v.stock }}">
+                                    [{{ v.id }}] {{ v.model.name }} - السعر: {{ v.sell_price or v.cost_price }} ج -
+                                    المتاح: {{ v.stock }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">الكمية:</label>
+                            <input type="number" name="quantity" class="form-control" id="newItemQty" value="1" min="1"
+                                required>
+                            <div class="form-text text-danger" id="qtyWarning" style="display: none;">الكمية تتجاوز
+                                المخزون المتاح!</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-success fw-bold" id="addItemBtn">إضافة الصنف</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Select2 (for searching products) -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('#newItemSelect').select2({
+                dropdownParent: $('#addItemModal'),
+                width: '100%',
+                placeholder: "-- ابحث واختر الصنف --"
+            });
+
+            // validation on stock limit
+            $('#newItemSelect, #newItemQty').on('change input', function () {
+                let selectedOpt = $('#newItemSelect').find(':selected');
+                let stock = parseInt(selectedOpt.data('stock') || 0);
+                let qty = parseInt($('#newItemQty').val() || 0);
+
+                if (selectedOpt.val() && qty > stock) {
+                    $('#qtyWarning').show();
+                    $('#addItemBtn').prop('disabled', true);
+                } else {
+                    $('#qtyWarning').hide();
+                    $('#addItemBtn').prop('disabled', false);
+                }
+            });
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% endif %}
+
+    <!-- Modal: دفعة إضافية -->
+    {% if not order.is_proforma and order.amount_due and order.amount_due > 0 %}
+    <div class="modal fade" id="addPaymentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="/invoice/{{ order.id }}/add_payment" method="POST">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title fw-bold"><i class="fas fa-money-bill-wave"></i> تسجيل دفعة إضافية</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2 small">
+                            <strong>المتبقي على العميل:</strong> {{ order.amount_due }} ج.م
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">المبلغ المدفوع:</label>
+                            <input type="number" step="0.01" name="payment_amount" class="form-control" 
+                                   max="{{ order.amount_due }}" min="1" required placeholder="مثال: 500">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">الخزينة:</label>
+                            <select name="payment_account_id" class="form-select" required>
+                                <option value="" disabled selected>-- اختر الخزينة --</option>
+                                {% for acc in accounts %}
+                                <option value="{{ acc.id }}">{{ acc.name }} ({{ acc.balance }} ج.م)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-success fw-bold btn-submit-once">تأكيد الدفع</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Modal: تحويل لشحن -->
+    {% if not order.is_proforma and not order.is_shipping %}
+    <div class="modal fade" id="convertShippingModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="/invoice/{{ order.id }}/convert_to_shipping" method="POST">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title fw-bold"><i class="fas fa-truck"></i> تحويل الفاتورة لشحن</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">شركة الشحن:</label>
+                            <select name="courier_id" class="form-select" required>
+                                <option value="" disabled selected>-- اختر شركة الشحن --</option>
+                                {% for c in couriers %}
+                                <option value="{{ c.id }}">{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">رقم البوليصة (اختياري):</label>
+                            <input type="text" name="waybill_no" class="form-control" placeholder="رقم البوليصة">
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">رسوم الشحن:</label>
+                                <input type="number" step="0.1" name="shipping_fee" class="form-control" value="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">من يتحمل الشحن؟</label>
+                                <select name="shipping_paid_by" class="form-select">
+                                    <option value="customer">العميل</option>
+                                    <option value="manager">الشركة</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">ملاحظات الشحن (اختياري):</label>
+                            <textarea name="shipping_notes" class="form-control" rows="2" placeholder="ملاحظات..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-info text-white fw-bold">تأكيد التحويل لشحن</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        function shareInvoiceWhatsApp(btn) {
+            if (!btn) btn = document.activeElement;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحضير الصورة...';
+            btn.disabled = true;
+
+            // تحديد حاوية الفاتورة
+            const invoiceElement = document.querySelector('.invoice-paper');
+            const custPhone = document.getElementById('custPhone') ? document.getElementById('custPhone').innerText.trim() : '';
+            const orderId = document.getElementById('orderId') ? document.getElementById('orderId').innerText.trim() : '';
+
+            // إخفاء الـ badges أو الأزرار اللي مش عايزينها تبان في الصورة مؤقتاً
+            const noPrintElements = document.querySelectorAll('.no-print, .returned-stamp');
+            const originalDisplays = [];
+            noPrintElements.forEach((el, index) => {
+                originalDisplays[index] = el.style.display;
+                el.style.display = 'none';
+            });
+
+            const originalBg = document.body.style.background;
+            document.body.style.background = 'white'; // عشان خلفية الصفحة متبانش رمادي
+
+            try {
+                html2canvas(invoiceElement, {
+                    scale: 1, // تثبيت السكيل لـ 1 لتجنب مشاكل الذاكرة في الآيفون
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: "#ffffff",
+                    scrollX: 0,
+                    scrollY: -window.scrollY, // حل مشكلة إزاحة الصورة عند السكرول
+                    logging: false
+                }).then(canvas => {
+                    // إرجاع الإخفاء
+                    noPrintElements.forEach((el, index) => el.style.display = originalDisplays[index]);
+                    document.body.style.background = originalBg;
+
+                    canvas.toBlob(function (blob) {
+                        const fileName = `Invoice_${orderId}.png`;
+                        const file = new File([blob], fileName, { type: 'image/png' });
+
+                        // محاولة استخدام ميزة المشاركة المباشرة 
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            navigator.share({
+                                title: `فاتورة #${orderId}`,
+                                text: `فاتورة رقم ${orderId}`,
+                                files: [file]
+                            }).then(() => {
+                                console.log('تمت المشاركة بنجاح');
+                            }).catch(err => {
+                                console.error('Share failed:', err);
+                                fallbackDownload(blob, fileName, custPhone, orderId);
+                            });
+                        } else {
+                            fallbackDownload(blob, fileName, custPhone, orderId);
+                        }
+
+                        btn.innerHTML = originalHtml;
+                        btn.disabled = false;
+                    }, 'image/png');
+
+                }).catch(err => {
+                    console.error('Screenshot error:', err);
+                    alert('عذراً، لم نتمكن من التقاط صورة للفاتورة. ' + (err.message || err));
+                    noPrintElements.forEach((el, index) => el.style.display = originalDisplays[index]);
+                    document.body.style.background = originalBg;
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                });
+            } catch (e) {
+                console.error('Catch block error:', e);
+                alert('حدث خطأ غير متوقع: ' + e.message);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        }
+
+        function fallbackDownload(blob, fileName, custPhone, orderId) {
+            // تحميل مباشر للصورة
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            // فتح واتساب عشان يرمي الصورة جواه
+            let waUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(`فاتورة رقم #${orderId}`)}`;
+            if (custPhone && custPhone !== 'بدون رقم' && custPhone !== '---') {
+                let waPhone = custPhone.replace(/[^0-9]/g, '');
+                if (waPhone.startsWith('0')) waPhone = waPhone.substring(1);
+                if (!waPhone.startsWith('20')) waPhone = '20' + waPhone;
+                waUrl = `https://web.whatsapp.com/send?phone=${waPhone}&text=${encodeURIComponent(`فاتورة رقم #${orderId}`)}`;
+            }
+            alert('تم تنزيل صورة الفاتورة بنجاح. سيتم فتح WhatsApp الآن، برجاء إرفاق الصورة للإرسال.');
+            window.open(waUrl, '_blank');
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('invoiceElement');
+            const opt = { margin: 0, filename: 'Invoice_{{ order.id }}.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        function sendWhatsApp() {
+            let phoneElement = document.getElementById('custPhone');
+            let phone = phoneElement ? phoneElement.innerText.trim().replace(/[^0-9]/g, '') : "";
+
+            if (!phone || phone === "" || phone === "بدونرقم") {
+                alert("عذراً، لا يوجد رقم هاتف مسجل لهذا العميل.");
+                return;
+            }
+
+            if (phone.startsWith('0')) phone = phone.substring(1);
+            if (!phone.startsWith('20')) phone = '20' + phone;
+
+            let msg = `{{ 'عرض سعر' if order.is_proforma else 'فاتورة' }} رقم #{{ order.id }}`;
+            let waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+
+            // استخدام location.href للموبايلات عشان يفتح التطبيق مباشرة
+            window.location.href = waUrl;
+        }
+    </script>
+
+    <!-- Modal: تعديل صنف -->
+    {% if not order.is_proforma and (current_user.role == 'general_manager' or current_user.has_perm('edit_invoice')) %}
+        {% for item in order.items %}
+        <div class="modal fade" id="editItemModal_{{ item.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content text-end">
+                    <form action="/invoice/{{ order.id }}/update_item/{{ item.id }}" method="POST">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title fw-bold"><i class="fas fa-edit"></i> تعديل الصنف: {{ item.variant.model.name if item.variant else '---' }}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">الكمية الجديدة:</label>
+                                <input type="number" name="new_qty" class="form-control" value="{{ item.quantity }}" step="1" required min="1">
+                                <small class="text-muted">المخزون الحالي لهذا الموديل: {{ item.variant.stock + item.quantity if item.variant else '---' }} (شامل الكمية الحالية بالفاتورة)</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">السعر الجديد (للقطعة):</label>
+                                <input type="number" name="new_price" class="form-control" value="{{ item.unit_price }}" step="0.01" required min="0">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                            <button type="submit" class="btn btn-primary fw-bold">حفظ التغييرات</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Modal: تعديل الخصم -->
+        <div class="modal fade" id="updateDiscountModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content text-end">
+                    <form action="/invoice/{{ order.id }}/update_discount" method="POST">
+                        <div class="modal-header bg-dark text-white">
+                            <h5 class="modal-title fw-bold"><i class="fas fa-percentage"></i> تعديل خصم الفاتورة</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">إجمالي الفاتورة (قبل الخصم):</label>
+                                <input type="text" class="form-control" value="{{ order.total_amount }}" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">قيمة الخصم الجديدة:</label>
+                                <input type="number" name="new_discount" class="form-control" value="{{ order.discount }}" step="0.01" required min="0" max="{{ order.total_amount }}">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                            <button type="submit" class="btn btn-dark fw-bold">تعديل الخصم</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    <script>
+    // Prevent double-click on all submit buttons
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            var btn = form.querySelector('.btn-submit-once, [type="submit"]');
+            if (btn && btn.dataset.submitted) {
+                e.preventDefault();
+                return false;
+            }
+            if (btn) {
+                btn.dataset.submitted = 'true';
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري التنفيذ...';
+            }
+        });
+    });
+    </script>
+</body>
+
+</html>

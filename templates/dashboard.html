@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>لوحة القيادة</title>
+
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="{{ theme_color or '#0d6efd' }}">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="My ERP">
+    <link rel="apple-touch-icon" href="/static/icon.png">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/static/sw.js').then(function (registration) {
+                    console.log('ServiceWorker registration successful');
+                }, function (err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --main-color: {
+                    {
+                    theme_color or '#0d6efd'
+                }
+            }
+
+            ;
+            --sidebar-bg: #1a1d20;
+            --sidebar-width: 260px;
+            --text-muted: #adb5bd;
+            --bg-body: #f4f6f9;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* 1. التخطيط العام */
+        .dashboard-container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        /* 2. القائمة الجانبية */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            flex-shrink: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1050;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 25px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            padding: 12px 20px;
+            margin: 4px 12px;
+            border-radius: 8px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            text-decoration: none;
+        }
+
+        .nav-link i {
+            width: 25px;
+            text-align: center;
+            margin-left: 10px;
+            font-size: 1.1rem;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background-color: var(--main-color);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transform: translateX(-5px);
+        }
+
+        .section-header {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6c757d;
+            margin: 25px 20px 10px;
+            font-weight: 700;
+            opacity: 0.7;
+        }
+
+        /* 3. الموبايل */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                right: calc(var(--sidebar-width) * -1);
+                height: 100%;
+                box-shadow: -5px 0 25px rgba(0, 0, 0, 0.2);
+            }
+
+            .sidebar.active {
+                right: 0;
+            }
+
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.4);
+                backdrop-filter: blur(3px);
+                z-index: 1040;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s;
+            }
+
+            .overlay.active {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .main-content {
+                padding: 15px;
+            }
+        }
+
+        /* 4. الهيدر في الموبايل */
+        .mobile-header {
+            display: none;
+            background: white;
+            padding: 10px 15px;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 15px;
+            border-radius: 12px;
+        }
+
+        @media (max-width: 991.98px) {
+            .mobile-header {
+                display: flex;
+            }
+        }
+
+        /* 5. تأثيرات الـ GPS */
+        .gps-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="overlay" onclick="toggleSidebar()"></div>
+
+    <div class="dashboard-container">
+
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                {% if global_company_logo %}
+                <img src="/static/uploads/{{ global_company_logo }}" class="bg-white rounded p-1 mb-2"
+                    style="width: 70px; height: 70px; object-fit: contain;">
+                {% elif company_logo %}
+                <img src="/static/uploads/{{ company_logo }}" class="bg-white rounded p-1 mb-2"
+                    style="width: 70px; height: 70px; object-fit: contain;">
+                {% else %}
+                <div class="bg-light text-dark rounded-circle d-inline-flex align-items-center justify-content-center mb-2"
+                    style="width: 60px; height: 60px; font-size: 1.5rem; font-weight: bold;">
+                    {{ user.fullname[0] }}
+                </div>
+                {% endif %}
+
+                <h6 class="fw-bold mb-0 mt-2">{{ user.fullname }}</h6>
+                <small class="text-white-50" style="font-size: 0.8rem;">
+                    {{ 'مدير عام' if user.role == 'general_manager' else 'موظف' }}
+                </small>
+            </div>
+
+            <div class="p-3">
+                <a href="/profile" class="nav-link text-warning mb-2"><i class="fas fa-id-card"></i> ملفي الشخصي</a>
+
+                <div class="nav flex-column">
+                    <a href="/" class="nav-link active"><i class="fas fa-home"></i> الرئيسية</a>
+
+                    {% if user.has_perm('view_pos') or user.has_perm('view_invoices') %}
+                    <div class="section-header">المبيعات</div>
+                    {% endif %}
+
+                    {% if user.has_perm('view_pos') %}
+                    <a href="/pos" class="nav-link"><i class="fas fa-cash-register"></i> نقطة البيع (POS)</a>
+                    {% endif %}
+
+                    {% if user.has_perm('view_invoices') %}
+                    <a href="/invoices" class="nav-link"><i class="fas fa-file-invoice"></i> سجل الفواتير</a>
+                    <a href="/returns" class="nav-link"><i class="fas fa-undo text-danger"></i> المرتجعات</a>
+                    {% endif %}
+
+                    {% if user.has_perm('view_customers') %}
+                    <a href="/customers" class="nav-link"><i class="fas fa-users"></i> العملاء</a>
+                    {% endif %}
+
+                    {% if user.has_perm('view_inventory') or user.has_perm('view_shipping') or user.has_perm('manage_qassat') %}
+                    <div class="section-header">العمليات</div>
+                    {% endif %}
+
+                    {% if user.has_perm('view_inventory') %}
+                    <a href="/inventory" class="nav-link"><i class="fas fa-boxes"></i> المنتجات والمخزن</a>
+                    <a href="/purchases/new" class="nav-link"><i class="fas fa-cart-plus"></i> مشتريات</a>
+                    <a href="/suppliers" class="nav-link"><i class="fas fa-truck-field"></i> الموردين</a>
+                    {% endif %}
+
+                    {% if user.role == 'general_manager' or user.has_perm('manage_qassat') %}
+                    <a href="/qassat" class="nav-link text-success"><i class="fas fa-cut"></i> القصات (التصنيع)</a>
+                    {% endif %}
+
+                    {% if user.has_perm('view_shipping') %}
+                    <a href="/shipping/orders" class="nav-link"><i class="fas fa-truck-fast"></i> متابعة الشحن</a>
+                    {% endif %}
+                    {% if user.has_perm('manage_shipping') %}
+                    <a href="/shipping/companies" class="nav-link"><i class="fas fa-building"></i> شركات الشحن</a>
+                    {% endif %}
+
+                    {% if user.has_perm('view_treasury') or user.role == 'general_manager' %}
+                    <div class="section-header">المالية والإدارة</div>
+                    {% endif %}
+
+                    {% if user.has_perm('view_treasury') %}
+                    <a href="/treasury" class="nav-link text-warning"><i class="fas fa-coins"></i> الخزينة والحسابات</a>
+                    {% endif %}
+
+                    {% if user.role in ['general_manager', 'manager'] %}
+                    <a href="/expenses" class="nav-link text-danger"><i class="fas fa-money-bill-wave"></i>
+                        المصروفات</a>
+                    {% endif %}
+
+                    {% if user.role in ['general_manager', 'manager'] %}
+                    <a href="/reports" class="nav-link"><i class="fas fa-chart-pie"></i> التقارير</a>
+                    {% endif %}
+
+                    {% if user.role == 'general_manager' %}
+                    <div class="section-header">الرقابة والمراجعة</div>
+                    <a href="/review_invoices" class="nav-link text-white fw-bold bg-danger" style="border-radius: 5px; margin-bottom: 10px;">
+                        <i class="fas fa-search-dollar"></i> المراجعة والاعتماد
+                        {% if pending_reviews_count and pending_reviews_count > 0 %}
+                        <span class="badge bg-white text-danger ms-2">{{ pending_reviews_count }}</span>
+                        {% endif %}
+                    </a>
+                    
+                    <a href="/hr/payroll" class="nav-link"><i class="fas fa-hand-holding-usd"></i> الرواتب</a>
+                    <a href="/permissions" class="nav-link"><i class="fas fa-user-shield"></i> الصلاحيات</a>
+                    <a href="/settings" class="nav-link"><i class="fas fa-cogs"></i> الإعدادات</a>
+                    <a href="/recycle_bin" class="nav-link text-danger"><i class="fas fa-trash-alt"></i> سلة المحذوفات</a>
+                    <a href="/pending_financial_actions" class="nav-link text-warning" id="pendingActionsLink">
+                        <i class="fas fa-tasks"></i> طلبات المديرين
+                        <span class="badge bg-danger ms-1 d-none" id="pendingBadge">0</span>
+                    </a>
+                    {% endif %}
+
+                    <div class="mt-5 pt-3 border-top border-secondary">
+                        <a href="/my_account" class="nav-link text-info fw-bold mb-2">
+                            <i class="fas fa-file-invoice-dollar"></i> كشف حسابي
+                        </a>
+                        <a href="/logout" class="nav-link text-danger fw-bold"><i class="fas fa-sign-out-alt"></i> تسجيل
+                            خروج</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="mobile-header d-lg-none">
+                <h5 class="m-0 fw-bold text-dark">لوحة التحكم</h5>
+                <button class="btn btn-outline-dark border-0" onclick="toggleSidebar()">
+                    <i class="fas fa-bars fa-lg"></i>
+                </button>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm border-0 mb-4 rounded-3">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <div class="card shadow-sm border-0 mb-4 bg-white rounded-4 overflow-hidden">
+                <div class="card-body p-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                        <h4 class="fw-bold m-0 text-dark">أهلاً، {{ (user.fullname or 'مستخدم').split()[0] }} 👋</h4>
+                        <div class="text-muted small mt-1">أتمنى لك يوماً إنتاجياً رائعاً!</div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-3 bg-light p-2 rounded-4 border">
+                        <div class="text-center px-3 border-end border-secondary border-opacity-25">
+                            <div class="fw-bold text-primary" id="liveTime" style="font-size: 1.1rem; letter-spacing: 1px;" dir="ltr">00:00:00</div>
+                            <div class="small text-muted fw-bold mt-1" id="liveDate" style="font-size: 0.75rem;">اليوم</div>
+                        </div>
+                        <div class="text-center px-2">
+                            <i class="fas fa-location-dot text-danger fs-5 mb-1"></i>
+                            <div class="small fw-bold" style="font-size: 0.7rem;">GPS</div>
+                        </div>
+                        <div class="vr"></div>
+                        <div>
+                            {% if attendance and attendance.check_in %}
+                            {% if attendance.check_out %}
+                            <div class="badge bg-secondary mb-1">تم الانصراف</div>
+                            <div class="small fw-bold">{{ attendance.check_out.strftime('%I:%M %p') }}</div>
+                            {% else %}
+                            <div class="small text-success fw-bold mb-1">حضور: {{ attendance.check_in.strftime('%I:%M
+                                %p') }}</div>
+                            <button onclick="handleAttendance('check_out')"
+                                class="btn btn-sm btn-outline-danger fw-bold w-100 rounded-pill">تسجيل انصراف</button>
+                            {% endif %}
+                            {% else %}
+                            <button onclick="handleAttendance('check_in')"
+                                class="btn btn-success btn-sm fw-bold gps-pulse w-100 rounded-pill">
+                                تسجيل حضور
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 mb-4">
+                <button class="btn btn-dark p-3 fw-bold shadow-sm rounded-4" data-bs-toggle="modal"
+                    data-bs-target="#dashboardCatalogModal">
+                    <i class="fas fa-book-open fa-lg me-2"></i> تحميل الكتالوج PDF
+                </button>
+                <button class="btn btn-outline-success p-3 fw-bold shadow-sm rounded-4" onclick="copyCatalogLink()">
+                    <i class="fas fa-link fa-lg me-2"></i> نسخ رابط الكتالوج للعملاء
+                </button>
+            </div>
+
+            <script>
+                function copyCatalogLink() {
+                    const domain = window.location.origin;
+                    let link = `${domain}/public/catalog`;
+                    const userPhone = "{{ user.phone if user.phone else '' }}";
+                    if (userPhone.trim() !== "") {
+                        link += `?ref=${userPhone}`;
+                    }
+
+                    navigator.clipboard.writeText(link).then(() => {
+                        const btn = document.activeElement;
+                        const originalHtml = btn.innerHTML;
+                        btn.innerHTML = '<i class="fas fa-check fa-lg me-2"></i> تم النسخ بنجاح!';
+                        btn.classList.replace('btn-outline-success', 'btn-success');
+                        btn.classList.add('text-white');
+                        setTimeout(() => {
+                            btn.innerHTML = originalHtml;
+                            btn.classList.replace('btn-success', 'btn-outline-success');
+                            btn.classList.remove('text-white');
+                        }, 2000);
+                    }).catch(err => {
+                        console.error("Failed to copy text: ", err);
+                        alert("تعذر نسخ الرابط. رابطك هو:\n" + link);
+                    });
+                }
+            </script>
+
+            {% if user.role == 'general_manager' %}
+            <div class="card shadow-sm border-0 rounded-4 mb-4 border-start border-4 border-success"
+                style="border-left: 4px solid #198754 !important;">
+                <div class="card-body py-3 px-4 d-flex align-items-center justify-content-between gap-3">
+                    <div>
+                        <div class="fw-bold text-success"><i class="fas fa-plus-circle me-1"></i>تسجيل وارد يدوي</div>
+                        <div class="small text-muted">لتسجيل أي فلوس داخلة مش من الفواتير</div>
+                    </div>
+                    <button class="btn btn-success fw-bold px-4" data-bs-toggle="modal"
+                        data-bs-target="#addIncomeModal">
+                        <i class="fas fa-plus me-1"></i> إضافة وارد
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="card shadow-sm border-0 rounded-4 h-100">
+                        <div
+                            class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 fw-bold"><i class="fas fa-clock text-primary me-2"></i> أحدث العمليات</h6>
+                            <a href="/invoices" class="btn btn-sm btn-light rounded-pill">عرض الكل</a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 text-center">
+                                <thead class="table-light small text-muted">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>العميل</th>
+                                        <th>القيمة</th>
+                                        <th>الحالة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in latest_orders %}
+                                    <tr>
+                                        <td><a href="/invoice/print/{{ order.id }}"
+                                                class="fw-bold text-decoration-none text-dark bg-light px-2 py-1 rounded">#{{
+                                                order.id }}</a></td>
+                                        <td>
+                                            <div class="text-truncate" style="max-width: 100px;">{{ order.customer.name
+                                                }}</div>
+                                        </td>
+                                        <td class="fw-bold text-primary">{{ order.final_total }}</td>
+                                        <td>
+                                            {% if order.is_shipping %}
+                                            <span class="badge bg-info bg-opacity-10 text-info border border-info"
+                                                style="font-size: 0.7em;">شحن</span>
+                                            {% else %}
+                                            <span
+                                                class="badge bg-success bg-opacity-10 text-success border border-success"
+                                                style="font-size: 0.7em;">مباشر</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-muted py-4">لا توجد عمليات حديثة</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                {% if user.role in ['general_manager', 'manager'] %}
+                <div class="col-lg-4">
+                    <div class="card shadow-sm border-0 rounded-4 h-100">
+                        <div
+                            class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 fw-bold"><i class="fas fa-user-tie text-primary me-2"></i> فريقي</h6>
+                            <button class="btn btn-sm btn-primary rounded-circle" data-bs-toggle="modal"
+                                data-bs-target="#addMemberModal"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% for member in team_members %}
+                            <div class="list-group-item border-0 d-flex align-items-center py-3">
+                                <div class="bg-light text-dark fw-bold rounded-circle d-flex align-items-center justify-content-center me-3"
+                                    style="width: 40px; height: 40px; font-size: 1.1rem;">
+                                    {{ member.fullname[0] }}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold small">{{ member.fullname }}</div>
+                                    <small class="text-muted" style="font-size: 0.75rem;">{{ member.role }}</small>
+                                </div>
+                                <a href="/employee/{{ member.id }}"
+                                    class="btn btn-sm btn-light text-muted rounded-circle"><i
+                                        class="fas fa-chevron-left"></i></a>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5 text-muted">لا يوجد أعضاء في الفريق</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+
+    {% if user.role == 'general_manager' %}
+    <div class="modal fade" id="addIncomeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white">
+                    <h6 class="modal-title"><i class="fas fa-plus-circle me-2"></i>تسجيل وارد يدوي</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="income_alert" class="d-none"></div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">المبلغ (ج.م)</label>
+                        <input type="number" id="income_amount" class="form-control" placeholder="0.00" min="0.01"
+                            step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">وصف / مصدر الوارد</label>
+                        <input type="text" id="income_desc" class="form-control"
+                            placeholder="مثال: بيع سيارة، هدية، استرداد ...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">تسجيل في الخزينة</label>
+                        <select id="income_account" class="form-select">
+                            <option value="">-- اختياري --</option>
+                            {% for acc in money_accounts %}
+                            <option value="{{ acc.id }}">{{ acc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold small">التصنيف</label>
+                        <select id="income_category" class="form-select">
+                            <option value="وارد يدوي">وارد يدوي</option>
+                            <option value="إيراد متنوع">إيراد متنوع</option>
+                            <option value="استرداد">استرداد</option>
+                            <option value="هبة / هدية">هبة / هدية</option>
+                            <option value="قرض مستلم">قرض مستلم</option>
+                            <option value="أخرى">أخرى</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-success w-100 fw-bold" onclick="submitIncome()">
+                        <i class="fas fa-check me-1"></i> تسجيل الوارد
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function submitIncome() {
+            const amount = parseFloat(document.getElementById('income_amount').value);
+            const desc = document.getElementById('income_desc').value.trim();
+            const accountId = document.getElementById('income_account').value;
+            const category = document.getElementById('income_category').value;
+            const alertDiv = document.getElementById('income_alert');
+
+            if (!amount || amount <= 0) {
+                alertDiv.className = 'alert alert-warning small py-2';
+                alertDiv.textContent = 'يرجى إدخال مبلغ صحيح';
+                return;
+            }
+            if (!desc) {
+                alertDiv.className = 'alert alert-warning small py-2';
+                alertDiv.textContent = 'يرجى إدخال وصف للوارد';
+                return;
+            }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التسجيل...';
+
+            fetch('/api/add_income', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount, description: desc, account_id: accountId || null, category })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        alertDiv.className = 'alert alert-success small py-2';
+                        alertDiv.textContent = data.message;
+                        document.getElementById('income_amount').value = '';
+                        document.getElementById('income_desc').value = '';
+                        setTimeout(() => {
+                            bootstrap.Modal.getInstance(document.getElementById('addIncomeModal')).hide();
+                            alertDiv.className = 'd-none';
+                        }, 1500);
+                    } else {
+                        alertDiv.className = 'alert alert-danger small py-2';
+                        alertDiv.textContent = data.error || 'حدث خطأ';
+                    }
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check me-1"></i> تسجيل الوارد';
+                })
+                .catch(() => {
+                    alertDiv.className = 'alert alert-danger small py-2';
+                    alertDiv.textContent = 'حدث خطأ في الاتصال';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check me-1"></i> تسجيل الوارد';
+                });
+        }
+    </script>
+    {% endif %}
+
+    <div class="modal fade" id="dashboardCatalogModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">تحميل كتالوج المنتجات</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/inventory/print_catalog" method="GET" target="_blank" id="dashCatalogForm">
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">سيتم إنشاء ملف PDF يحتوي على المنتجات المتوفرة فقط (المخزون
+                            أكبر من صفر).</p>
+                        <label class="form-label fw-bold">اختر الأقسام المراد طباعتها:</label>
+                        <div class="border rounded p-3 mb-2" style="max-height: 200px; overflow-y: auto;">
+                            <div class="form-check text-end">
+                                <input class="form-check-input float-end ms-2" type="checkbox" id="dash_cat_all"
+                                    value="all" checked onchange="toggleDashAllCats(this)">
+                                <label class="form-check-label w-100" for="dash_cat_all" style="cursor: pointer;">
+                                    -- كل المنتجات (الكل) --
+                                </label>
+                            </div>
+                            <hr class="my-2">
+                            {% for cat in categories %}
+                            <div class="form-check text-end">
+                                <input class="form-check-input dash-cat-checkbox float-end ms-2" type="checkbox"
+                                    name="category_id" value="{{ cat.id }}" id="dash_cat_{{ cat.id }}"
+                                    onchange="checkIndividualDashCats()">
+                                <label class="form-check-label w-100" for="dash_cat_{{ cat.id }}"
+                                    style="cursor: pointer;">
+                                    {{ cat.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-danger d-none" id="dashCatErrorMsg">يرجى اختيار قسم واحد على الأقل</small>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-dark w-100 fw-bold"
+                            onclick="return validateDashCatalogForm()">
+                            <i class="fas fa-file-pdf me-2"></i> عرض وتحميل PDF
+                        </button>
+
+                        <script>
+                            function toggleDashAllCats(allCheckbox) {
+                                const checkboxes = document.querySelectorAll('.dash-cat-checkbox');
+                                checkboxes.forEach(cb => {
+                                    cb.checked = false;
+                                    cb.disabled = allCheckbox.checked;
+                                });
+                            }
+
+                            function checkIndividualDashCats() {
+                                const allCheckbox = document.getElementById('dash_cat_all');
+                                const anyChecked = document.querySelectorAll('.dash-cat-checkbox:checked').length > 0;
+                                if (anyChecked) {
+                                    allCheckbox.checked = false;
+                                }
+                            }
+
+                            function validateDashCatalogForm() {
+                                const allChecked = document.getElementById('dash_cat_all').checked;
+                                const anyCatChecked = document.querySelectorAll('.dash-cat-checkbox:checked').length > 0;
+                                const errorMsg = document.getElementById('dashCatErrorMsg');
+
+                                if (!allChecked && !anyCatChecked) {
+                                    errorMsg.classList.remove('d-none');
+                                    return false;
+                                }
+                                errorMsg.classList.add('d-none');
+
+                                if (allChecked) {
+                                    const form = document.getElementById('dashCatalogForm');
+                                    const oldHidden = form.querySelector('input[name="category_id"][value="all"][type="hidden"]');
+                                    if (!oldHidden) {
+                                        const hiddenInput = document.createElement('input');
+                                        hiddenInput.type = 'hidden';
+                                        hiddenInput.name = 'category_id';
+                                        hiddenInput.value = 'all';
+                                        form.appendChild(hiddenInput);
+                                    }
+                                }
+                                return true;
+                            }
+
+                            document.addEventListener('DOMContentLoaded', () => {
+                                toggleDashAllCats(document.getElementById('dash_cat_all'));
+                            });
+                        </script>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addMemberModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white">
+                    <h6 class="modal-title">إضافة موظف جديد</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/team/add_member" method="POST">
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">الاسم بالكامل</label>
+                                <input type="text" name="fullname" class="form-control" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">رقم الهاتف</label>
+                                <input type="text" name="phone" class="form-control" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">اسم المستخدم (Login)</label>
+                                <input type="text" name="username" class="form-control" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">كلمة المرور</label>
+                                <input type="password" name="password" class="form-control" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-bold">الدور الوظيفي</label>
+                                <select name="role" class="form-select">
+                                    <option value="sales">مبيعات (Sales)</option>
+                                    <option value="worker">عامل / مخزن</option>
+                                    <option value="manager">مدير فريق</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">الراتب الأساسي</label>
+                                <input type="number" name="base_salary" class="form-control" placeholder="0.00">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">نظام القبض</label>
+                                <select name="job_type" class="form-select">
+                                    <option value="fixed">راتب ثابت</option>
+                                    <option value="tiered_sales">راتب + تارجت</option>
+                                    <option value="commission_only">عمولة فقط</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="work_from_home"
+                                        id="addMemberWfh">
+                                    <label class="form-check-label small fw-bold" for="addMemberWfh">
+                                        <i class="fas fa-house-user me-1"></i> العمل من المنزل
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">حفظ البيانات</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.querySelector('.overlay').classList.toggle('active');
+        }
+
+        function updateLiveClock() {
+            const timeEl = document.getElementById('liveTime');
+            const dateEl = document.getElementById('liveDate');
+            if (!timeEl || !dateEl) return;
+
+            const now = new Date();
+            
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            let seconds = now.getSeconds();
+            const ampm = hours >= 12 ? 'م' : 'ص';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            seconds = seconds < 10 ? '0' + seconds : seconds;
+            timeEl.textContent = `${hours}:${minutes}:${seconds} ${ampm}`;
+
+            const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+            const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+            dateEl.textContent = `${days[now.getDay()]}، ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+        }
+        setInterval(updateLiveClock, 1000);
+        updateLiveClock();
+
+        function handleAttendance(action) {
+            if (!navigator.geolocation) return alert("المتصفح لا يدعم GPS");
+
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحديد الموقع...';
+            btn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    fetch('/api/attendance', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude,
+                            action: action
+                        })
+                    }).then(r => r.json()).then(d => {
+                        if (d.error) alert(d.error);
+                        else location.reload();
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    });
+                },
+                () => {
+                    alert("يرجى تفعيل الـ GPS والسماح للموقع بالوصول");
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                },
+                { enableHighAccuracy: true }
+            );
+        }
+    </script>
+
+    {% if current_user.role == 'general_manager' %}
+    <script>
+        function updatePendingBadge() {
+            fetch('/api/pending_count')
+                .then(r => r.json())
+                .then(data => {
+                    const badge = document.getElementById('pendingBadge');
+                    if (badge) {
+                        if (data.count > 0) {
+                            badge.textContent = data.count;
+                            badge.classList.remove('d-none');
+                        } else {
+                            badge.classList.add('d-none');
+                        }
+                    }
+                }).catch(() => { });
+        }
+        updatePendingBadge();
+        setInterval(updatePendingBadge, 30000);
+    </script>
+    {% endif %}
+
+</body>
+
+</html>

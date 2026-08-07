@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة المخزن</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* تنسيق خاص لجعل الصورة قابلة للنقر وتظهر عليها علامة تغيير */
+        .img-editable {
+            position: relative;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        .img-editable img {
+            transition: 0.3s;
+        }
+
+        .img-editable:hover img {
+            opacity: 0.7;
+        }
+
+        .img-editable:hover::after {
+            content: '\f030';
+            /* أيقونة كاميرا */
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #0d6efd;
+            font-size: 1.2rem;
+        }
+
+        /* تنسيق الخلايا النصية القابلة للتعديل */
+        .editable {
+            cursor: pointer;
+            transition: 0.2s;
+            position: relative;
+        }
+
+        .editable:hover {
+            background-color: #f8f9fa;
+            box-shadow: inset 0 0 0 1px #dee2e6;
+        }
+
+        .editable:hover::after {
+            content: '\f303';
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            position: absolute;
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.7rem;
+            color: #adb5bd;
+        }
+
+        .edit-input {
+            width: 100%;
+            text-align: center;
+            border: 2px solid #0d6efd;
+            border-radius: 5px;
+            padding: 2px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar navbar-light bg-white shadow-sm px-3 mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <a href="/dashboard" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-right"></i>
+                الرئيسية</a>
+            <h5 class="m-0 fw-bold">📦 المخزن والمنتجات</h5>
+        </div>
+        <div class="d-flex gap-2">
+            <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="بحث..."
+                onkeyup="filterTable()" style="min-width: 200px;">
+            {% if current_user.role != 'manager' %}
+            <a href="/purchases/new" class="btn btn-success btn-sm fw-bold text-nowrap"><i class="fas fa-plus"></i> شراء بضاعة</a>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/inventory/print_stock" target="_blank" class="btn btn-outline-danger btn-sm fw-bold text-nowrap">
+                <i class="fas fa-file-pdf"></i> طباعة جرد
+            </a>
+            <button type="button" class="btn btn-dark btn-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#printCatalogModal">
+                <i class="fas fa-images"></i> طباعة الكتالوج
+            </button>
+        </div>
+    </nav>
+
+    <div class="container mb-3">
+        <div class="card shadow-sm border-0 p-2 d-flex justify-content-center">
+            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-center" id="categoryBadgesContainer">
+                <!-- Badges will be injected here by JS -->
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 text-center">
+                        <thead class="bg-dark text-white">
+                            <tr>
+                                <th>كود (ID)</th>
+                                <th>الصورة</th>
+                                <th>اسم المنتج</th>
+                                <th>التصنيف</th>
+                                {% if current_user.role != 'manager' %}
+                                <th>التكلفة</th>
+                                {% endif %}
+                                <th>سعر البيع</th>
+                                {% if current_user.role != 'manager' %}
+                                <th>هامش الربح</th>
+                                {% endif %}
+                                <th>المخزون</th>
+                                <th>إجراءات</th>
+                            </tr>
+                            <tr id="tableFooter" style="display: none; background-color: #fdf5d3;" class="fw-bold text-dark">
+                                <td colspan="4" class="text-end">الإجماليات (الكمية × السعر):</td>
+                                {% if current_user.role != 'manager' %}
+                                <td id="totalCost" class="text-danger">0.00</td>
+                                {% endif %}
+                                <td id="totalSell" class="text-success">0.00</td>
+                                {% if current_user.role != 'manager' %}
+                                <td id="totalProfit" class="text-primary">0.00</td>
+                                {% endif %}
+                                <td id="totalStock" class="text-dark">0</td>
+                                <td></td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in products %}
+                            <tr id="row_{{ p.id }}">
+                                <td class="fw-bold text-muted">{{ p.id }}</td>
+
+                                <td>
+                                    {% if current_user.role != 'manager' %}
+                                    <label class="img-editable" title="اضغط لتغيير الصورة">
+                                        <img id="img_preview_{{ p.id }}" src="/static/uploads/{{ p.model.image }}"
+                                            class="rounded border"
+                                            style="width: 50px; height: 50px; object-fit: contain;">
+                                        <input type="file" class="d-none"
+                                            onchange="uploadProductImage({{ p.id }}, this)" accept="image/*">
+                                    </label>
+                                    {% else %}
+                                    <img src="/static/uploads/{{ p.model.image }}" class="rounded border"
+                                        style="width: 50px; height: 50px; object-fit: contain;">
+                                    {% endif %}
+                                </td>
+
+                                <td class="{% if current_user.role != 'manager' %}editable {% endif %}fw-bold"
+                                    data-id="{{ p.id }}" data-field="name">{{ p.model.name }}
+                                </td>
+
+                                <td class="{% if current_user.role == 'general_manager' %}editable{% endif %}"
+                                    data-id="{{ p.id }}" data-field="category">
+                                    <span class="badge bg-light text-dark border">{{ p.model.category.name }}</span>
+                                </td>
+
+                                {% if current_user.role != 'manager' %}
+                                <td class="editable fw-bold text-secondary" data-id="{{ p.id }}" data-field="cost">{{
+                                    p.cost_price }}</td>
+                                {% endif %}
+
+                                <td class="{% if current_user.role != 'manager' %}editable {% endif %}fw-bold text-success"
+                                    data-id="{{ p.id }}" data-field="sell">{{
+                                    p.sell_price }}</td>
+
+                                {% if current_user.role != 'manager' %}
+                                <td class="fw-bold text-primary" data-id="{{ p.id }}" data-field="profit">
+                                    {{ "%.2f"|format(p.sell_price - p.cost_price) }}
+                                </td>
+                                {% endif %}
+
+                                <td class="{% if current_user.role != 'manager' %}editable {% endif %}"
+                                    data-id="{{ p.id }}" data-field="stock">
+                                    <span class="badge {{ 'bg-success' if p.stock > 0 else 'bg-danger' }} fs-6">
+                                        {{ p.stock }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/print_barcode/{{ p.id }}" class="btn btn-dark" target="_blank"
+                                            title="طباعة باركود">
+                                            <i class="fas fa-barcode"></i>
+                                        </a>
+                                        {% if current_user.role != 'manager' %}
+                                        <a href="/product/delete/{{ p.id }}" class="btn btn-danger"
+                                            onclick="return confirm('حذف نهائي؟')" title="حذف">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="{% if current_user.role != 'manager' %}8{% else %}7{% endif %}"
+                                    class="py-5 text-muted">المخزن فارغ</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="printCatalogModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">خيارات طباعة الكتالوج (Abo Eyad)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/inventory/print_catalog" method="GET" target="_blank" id="catalogForm">
+                    <div class="modal-body">
+                        <label class="form-label fw-bold">اختر الأقسام المراد طباعتها:</label>
+                        <div class="border rounded p-3 mb-2" style="max-height: 200px; overflow-y: auto;">
+                            <div class="form-check text-end">
+                                <input class="form-check-input float-end ms-2" type="checkbox" id="cat_all" value="all"
+                                    checked onchange="toggleAllCats(this)">
+                                <label class="form-check-label w-100" for="cat_all" style="cursor: pointer;">
+                                    -- كل المنتجات (الكل) --
+                                </label>
+                            </div>
+                            <hr class="my-2">
+                            {% for cat in categories %}
+                            <div class="form-check text-end">
+                                <input class="form-check-input cat-checkbox float-end ms-2" type="checkbox"
+                                    name="category_id" value="{{ cat.id }}" id="cat_{{ cat.id }}"
+                                    onchange="checkIndividualCats()">
+                                <label class="form-check-label w-100" for="cat_{{ cat.id }}" style="cursor: pointer;">
+                                    {{ cat.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-danger d-none" id="catErrorMsg">يرجى اختيار قسم واحد على الأقل</small>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary w-100 fw-bold"
+                            onclick="return validateCatalogForm()">
+                            <i class="fas fa-print"></i> عرض وطباعة
+                        </button>
+
+                        <script>
+                            function toggleAllCats(allCheckbox) {
+                                const checkboxes = document.querySelectorAll('.cat-checkbox');
+                                checkboxes.forEach(cb => {
+                                    cb.checked = false;
+                                    cb.disabled = allCheckbox.checked;
+                                });
+                            }
+
+                            function checkIndividualCats() {
+                                const allCheckbox = document.getElementById('cat_all');
+                                const anyChecked = document.querySelectorAll('.cat-checkbox:checked').length > 0;
+                                if (anyChecked) {
+                                    allCheckbox.checked = false;
+                                }
+                            }
+
+                            function validateCatalogForm() {
+                                const allChecked = document.getElementById('cat_all').checked;
+                                const anyCatChecked = document.querySelectorAll('.cat-checkbox:checked').length > 0;
+                                const errorMsg = document.getElementById('catErrorMsg');
+
+                                if (!allChecked && !anyCatChecked) {
+                                    errorMsg.classList.remove('d-none');
+                                    return false;
+                                }
+                                errorMsg.classList.add('d-none');
+
+                                // If "All" is checked, we need to append a hidden input for 'category_id=all'
+                                // so the backend knows.
+                                if (allChecked) {
+                                    const form = document.getElementById('catalogForm');
+                                    // Remove any existing hidden 'all' inputs
+                                    const oldHidden = form.querySelector('input[name="category_id"][value="all"][type="hidden"]');
+                                    if (!oldHidden) {
+                                        const hiddenInput = document.createElement('input');
+                                        hiddenInput.type = 'hidden';
+                                        hiddenInput.name = 'category_id';
+                                        hiddenInput.value = 'all';
+                                        form.appendChild(hiddenInput);
+                                    }
+                                }
+                                return true;
+                            }
+
+                            // Initialize state on load
+                            document.addEventListener('DOMContentLoaded', () => {
+                                toggleAllCats(document.getElementById('cat_all'));
+                            });
+                        </script>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. دالة رفع الصورة وتحديثها فورياً
+        function uploadProductImage(id, inputElement) {
+            const file = inputElement.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('id', id);
+
+            // تغيير شكل الصورة مؤقتاً لـ Loading
+            const imgElement = document.getElementById('img_preview_' + id);
+            const originalSrc = imgElement.src;
+            imgElement.style.opacity = '0.3';
+
+            fetch('/api/update_product_image', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // تحديث الصورة بالرابط الجديد (نضيف وقت عشوائي عشان المتصفح مياخدش الكاش القديم)
+                        imgElement.src = data.new_image_url + '?t=' + new Date().getTime();
+                        imgElement.style.opacity = '1';
+                        // ومضة خضراء
+                        imgElement.style.border = '2px solid green';
+                        setTimeout(() => imgElement.style.border = '', 1000);
+                    } else {
+                        alert('فشل الرفع: ' + data.message);
+                        imgElement.src = originalSrc;
+                        imgElement.style.opacity = '1';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('حدث خطأ في الاتصال');
+                    imgElement.src = originalSrc;
+                    imgElement.style.opacity = '1';
+                });
+        }
+    </script>
+    <script>
+        const IS_MANAGER = {{ 'true' if current_user.role == 'manager' else 'false' }};
+        const USER_ROLE = "{{ current_user.role }}";
+        const ALL_CATEGORIES = [
+            {% for cat in categories %}
+                { id: {{ cat.id }}, name: "{{ cat.name }}" },
+            {% endfor %}
+        ];
+
+        // 2. كود تعديل النصوص (الاسم، السعر، المخزون)
+        document.addEventListener('DOMContentLoaded', function () {
+            if (IS_MANAGER) return;  // المديرون لا يملكون صلاحية التعديل
+
+            const editableCells = document.querySelectorAll('.editable');
+
+            editableCells.forEach(cell => {
+                cell.addEventListener('dblclick', function () {
+                    if (this.querySelector('input')) return;
+
+                    const originalContent = this.innerText.trim();
+                    const field = this.dataset.field;
+                    const id = this.dataset.id;
+
+                    let input;
+                    if (field === 'category') {
+                        input = document.createElement('select');
+                        input.className = 'form-select form-select-sm edit-input';
+                        ALL_CATEGORIES.forEach(cat => {
+                            const opt = document.createElement('option');
+                            opt.value = cat.id;
+                            opt.text = cat.name;
+                            if (cat.name === originalContent) opt.selected = true;
+                            input.appendChild(opt);
+                        });
+                    } else {
+                        input = document.createElement('input');
+                        input.type = (field === 'name') ? 'text' : 'number';
+                        input.value = originalContent;
+                        input.className = 'edit-input';
+                    }
+
+                    const originalHTML = this.innerHTML;
+                    this.innerHTML = '';
+                    this.appendChild(input);
+                    input.focus();
+
+
+                    const save = () => {
+                        const newValue = input.value.trim();
+                        if (newValue === originalContent) {
+                            this.innerHTML = originalHTML;
+                            return;
+                        }
+
+                        fetch('/api/quick_update_product', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: id, field: field, value: newValue })
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    if (field === 'stock') {
+                                        const badgeClass = (parseInt(newValue) > 0) ? 'bg-success' : 'bg-danger';
+                                        this.innerHTML = `<span class="badge ${badgeClass} fs-6">${newValue}</span>`;
+                                    } else if (field === 'category') {
+                                        const selectedText = input.options[input.selectedIndex].text;
+                                        this.innerHTML = `<span class="badge bg-light text-dark border">${selectedText}</span>`;
+                                    } else {
+                                        this.innerText = newValue;
+                                    }
+                                    this.style.backgroundColor = '#d1e7dd';
+                                    setTimeout(() => this.style.backgroundColor = '', 500);
+
+                                    if (typeof updateCategoryBadges === 'function') {
+                                        updateCategoryBadges();
+                                        filterTable();
+                                    }
+                                } else {
+                                    alert('خطأ: ' + data.message);
+                                    this.innerHTML = originalHTML;
+                                }
+                            })
+                            .catch(err => {
+                                this.innerHTML = originalHTML;
+                            });
+                    };
+
+                    input.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') this.blur();
+                        else if (e.key === 'Escape') cell.innerHTML = originalHTML;
+                    });
+                    input.addEventListener('blur', save);
+                });
+            });
+        });
+
+        let selectedCategories = new Set();
+        
+        function updateCategoryBadges() {
+            const table = document.querySelector("table tbody");
+            const tr = table.getElementsByTagName("tr");
+            const catCounts = {};
+            let grandTotal = 0;
+
+            for (let i = 0; i < tr.length; i++) {
+                if (tr[i].children.length <= 1) continue; 
+                
+                const tdCat = tr[i].querySelector('td[data-field="category"]');
+                const tdStock = tr[i].querySelector('td[data-field="stock"]');
+                
+                if (tdCat && tdStock) {
+                    const catName = tdCat.textContent.trim();
+                    const stock = parseInt(tdStock.textContent.trim()) || 0;
+                    
+                    if (!catCounts[catName]) {
+                        catCounts[catName] = 0;
+                    }
+                    catCounts[catName] += stock;
+                    grandTotal += stock;
+                }
+            }
+
+            const container = document.getElementById("categoryBadgesContainer");
+            if (!container) return;
+            
+            let html = '<span class="fw-bold me-2 text-muted"><i class="fas fa-chart-bar"></i> كميات المخزون:</span>';
+            
+            const allSelected = selectedCategories.size === 0;
+            html += `<button class="btn btn-sm ${allSelected ? 'btn-primary' : 'btn-light border'} fw-bold px-3 py-1 m-1" onclick="toggleCategory('all')">الإجمالي: ${grandTotal}</button>`;
+            
+            for (const [catName, count] of Object.entries(catCounts)) {
+                const isSelected = selectedCategories.has(catName);
+                const style = isSelected ? 'border: 2px solid #0d6efd; color: #0d6efd;' : 'border: 1px solid #dee2e6; color: #495057;';
+                html += `<button class="btn btn-sm bg-white fw-bold px-3 py-1 m-1" style="${style}" onclick="toggleCategory('${catName}')">${catName}: ${count}</button>`;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        function toggleCategory(catName) {
+            if (catName === 'all') {
+                selectedCategories.clear();
+            } else {
+                if (selectedCategories.has(catName)) {
+                    selectedCategories.delete(catName);
+                } else {
+                    selectedCategories.add(catName);
+                }
+            }
+            updateCategoryBadges();
+            filterTable();
+        }
+
+        function filterTable() {
+            var searchInput = document.getElementById("searchInput").value.toUpperCase();
+            var table = document.querySelector("table tbody");
+            var tr = table.getElementsByTagName("tr");
+            
+            let sumCost = 0;
+            let sumSell = 0;
+            let sumProfit = 0;
+            let sumStock = 0;
+            let visibleCount = 0;
+
+            for (var i = 0; i < tr.length; i++) {
+                if (tr[i].children.length <= 1) continue; 
+
+                var tdId = tr[i].querySelector('td:nth-child(1)');
+                var tdName = tr[i].querySelector('td[data-field="name"]');
+                var tdCat = tr[i].querySelector('td[data-field="category"]');
+                var tdStock = tr[i].querySelector('td[data-field="stock"]');
+                var tdCost = tr[i].querySelector('td[data-field="cost"]');
+                var tdSell = tr[i].querySelector('td[data-field="sell"]');
+                var tdProfit = tr[i].querySelector('td[data-field="profit"]');
+
+                if (tdId || tdName || tdCat) {
+                    var txtValueId = tdId ? (tdId.textContent || tdId.innerText) : "";
+                    var txtValueName = tdName ? (tdName.textContent || tdName.innerText) : "";
+                    var txtValueCat = tdCat ? (tdCat.textContent || tdCat.innerText).trim() : "";
+
+                    var matchesSearch = txtValueId.toUpperCase().indexOf(searchInput) > -1 || txtValueName.toUpperCase().indexOf(searchInput) > -1;
+                    var matchesCat = (selectedCategories.size === 0) || selectedCategories.has(txtValueCat);
+
+                    if (matchesSearch && matchesCat) {
+                        tr[i].style.display = "";
+                        visibleCount++;
+                        
+                        let stock = tdStock ? (parseInt(tdStock.textContent) || 0) : 0;
+                        let cost = tdCost ? (parseFloat(tdCost.textContent) || 0) : 0;
+                        let sell = tdSell ? (parseFloat(tdSell.textContent) || 0) : 0;
+                        let profit = tdProfit ? (parseFloat(tdProfit.textContent) || 0) : 0;
+                        
+                        sumStock += stock;
+                        sumCost += (cost * stock);
+                        sumSell += (sell * stock);
+                        sumProfit += (profit * stock);
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+            
+            const footer = document.getElementById("tableFooter");
+            if (footer && visibleCount > 0) {
+                footer.style.display = "";
+                const elCost = document.getElementById("totalCost");
+                const elSell = document.getElementById("totalSell");
+                const elProfit = document.getElementById("totalProfit");
+                const elStock = document.getElementById("totalStock");
+                
+                if (elCost) elCost.textContent = sumCost.toFixed(2);
+                if (elSell) elSell.textContent = sumSell.toFixed(2);
+                if (elProfit) elProfit.textContent = sumProfit.toFixed(2);
+                if (elStock) elStock.textContent = sumStock;
+            } else if (footer) {
+                footer.style.display = "none";
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateCategoryBadges();
+            filterTable();
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
