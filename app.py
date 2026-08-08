@@ -6575,9 +6575,9 @@ def product_profile(variant_id):
 def inventory():
     show_hidden = request.args.get('hidden', '0') == '1'
     if show_hidden:
-        products = ProductVariant.query.filter_by(is_hidden=True).all()
+        products = ProductVariant.query.filter_by(is_hidden=True).order_by(ProductVariant.id.desc()).all()
     else:
-        products = ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all()
+        products = ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).order_by(ProductVariant.id.desc()).all()
     
     return render_template('inventory.html', products=products, user=current_user, categories=Category.query.all(), show_hidden=show_hidden)
 
