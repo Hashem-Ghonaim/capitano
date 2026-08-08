@@ -1530,11 +1530,17 @@ def pos():
     edit_id = request.args.get('edit')
     edit_order_data = None
 
+    order_season = 'winter'
+
     if edit_id:
         try:
             order = SaleOrder.query.get(int(edit_id))
             # نتأكد إنها موجودة وإنها "عرض سعر" (مسودة)
             if order and order.is_proforma:
+                # نحدد الموسم بناءً على أول منتج في الفاتورة
+                if order.items and order.items[0].variant and order.items[0].variant.model.category:
+                    order_season = order.items[0].variant.model.category.season
+                    
                 edit_order_data = {
                     'id': order.id,
                     'customer_id': order.customer_id,
@@ -1566,7 +1572,9 @@ def pos():
             )
         ).order_by(Customer.id.desc()).all()
 
-    season = request.args.get('season', 'winter')
+    season = request.args.get('season')
+    if not season:
+        season = order_season if edit_id else 'winter'
     
     # 3. عرض الصفحة مع تمرير بيانات التعديل (لو وجدت)
     return render_template('pos.html',

@@ -324,8 +324,8 @@
         <div class="products-area">
             <div class="d-flex justify-content-center mb-2">
                 <div class="btn-group shadow-sm w-100" style="max-width: 400px;" role="group">
-                    <a href="/pos?season=winter" class="btn {% if current_season == 'winter' %}btn-primary fw-bold{% else %}btn-outline-primary{% endif %}">❄️ الموسم الشتوي</a>
-                    <a href="/pos?season=summer" class="btn {% if current_season == 'summer' %}btn-warning fw-bold{% else %}btn-outline-warning{% endif %}">☀️ الموسم الصيفي</a>
+                    <a href="/pos?season=winter{% if edit_order_data %}&edit={{ edit_order_data.id }}{% endif %}" class="btn {% if current_season == 'winter' %}btn-primary fw-bold{% else %}btn-outline-primary{% endif %}">❄️ الموسم الشتوي</a>
+                    <a href="/pos?season=summer{% if edit_order_data %}&edit={{ edit_order_data.id }}{% endif %}" class="btn {% if current_season == 'summer' %}btn-warning fw-bold{% else %}btn-outline-warning{% endif %}">☀️ الموسم الصيفي</a>
                 </div>
             </div>
             
