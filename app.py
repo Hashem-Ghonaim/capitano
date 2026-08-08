@@ -1527,7 +1527,7 @@ def login():
 @login_required
 def pos():
     # 1. التحقق: هل يوجد رقم فاتورة للتعديل في الرابط؟ (?edit=81)
-    edit_id = request.args.get('edit')
+    edit_id = request.args.get('edit') or request.args.get('proforma_id')
     edit_order_data = None
 
     order_season = 'winter'
@@ -1539,7 +1539,7 @@ def pos():
             if order and order.is_proforma:
                 # نحدد الموسم بناءً على أول منتج في الفاتورة
                 if order.items and order.items[0].variant and order.items[0].variant.model.category:
-                    order_season = order.items[0].variant.model.category.season
+                    order_season = order.items[0].variant.model.category.season or 'winter'
                     
                 edit_order_data = {
                     'id': order.id,
