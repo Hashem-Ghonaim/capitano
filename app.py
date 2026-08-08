@@ -6601,7 +6601,7 @@ def inventory():
 
 @app.route('/toggle_hide_product/<int:id>', methods=['POST'])
 @login_required
-@permission_required('manage_inventory')
+@general_manager_required
 def toggle_hide_product(id):
     variant = ProductVariant.query.get_or_404(id)
     variant.is_hidden = not variant.is_hidden
