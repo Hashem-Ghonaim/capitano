@@ -89,9 +89,10 @@
                                     <option value="">المصنع (الكل)</option>
                                     {% set active_factories = [] %}
                                     {% for q in active_qassat %}
-                                        {% if q.factory not in active_factories %}
-                                            {% set _ = active_factories.append(q.factory) %}
-                                            <option value="{{ q.factory }}">{{ q.factory }}</option>
+                                        {% set clean_factory = q.factory.strip() %}
+                                        {% if clean_factory not in active_factories %}
+                                            {% set _ = active_factories.append(clean_factory) %}
+                                            <option value="{{ clean_factory }}">{{ clean_factory }}</option>
                                         {% endif %}
                                     {% endfor %}
                                 </select>
@@ -231,9 +232,10 @@
                                             <option value="">المصنع (الكل)</option>
                                             {% set received_factories = [] %}
                                             {% for q in received_qassat %}
-                                                {% if q.factory not in received_factories %}
-                                                    {% set _ = received_factories.append(q.factory) %}
-                                                    <option value="{{ q.factory }}">{{ q.factory }}</option>
+                                                {% set clean_factory = q.factory.strip() %}
+                                                {% if clean_factory not in received_factories %}
+                                                    {% set _ = received_factories.append(clean_factory) %}
+                                                    <option value="{{ clean_factory }}">{{ clean_factory }}</option>
                                                 {% endif %}
                                             {% endfor %}
                                         </select>
@@ -514,7 +516,7 @@
         const tableId = activeTab === '#active' ? '#active table' : '#received table';
         const dropdownId = activeTab === '#active' ? 'factoryDropdownActive' : 'factoryDropdownReceived';
         
-        const input = document.getElementById(dropdownId).value.toUpperCase();
+        const input = document.getElementById(dropdownId).value.trim().toUpperCase();
         const table = document.querySelector(tableId);
         const totalSpan = document.getElementById("totalFactoryQty");
         
