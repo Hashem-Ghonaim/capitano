@@ -1566,10 +1566,16 @@ def pos():
             )
         ).order_by(Customer.id.desc()).all()
 
+    season = request.args.get('season', 'winter')
+    
     # 3. عرض الصفحة مع تمرير بيانات التعديل (لو وجدت)
     return render_template('pos.html',
-                           categories=Category.query.all(),
-                           products=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all(),
+                           categories=Category.query.filter_by(season=season).all(),
+                           products=ProductVariant.query.join(ProductModel).join(Category).filter(
+                               Category.season == season,
+                               or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)
+                           ).all(),
+                           current_season=season,
                            customers=customers,
                            shipping_companies=ShippingCompany.query.all(),
                            money_accounts=MoneyAccount.query.all(),
