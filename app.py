@@ -9813,5 +9813,18 @@ def fix_restore_return_39():
         db.session.rollback()
         return f"حدث خطأ: {str(e)}"
 
+@app.route('/fix/add_season_column')
+@login_required
+def fix_add_season_column():
+    if current_user.role != 'general_manager': return "Unauthorized"
+    try:
+        from sqlalchemy import text
+        db.session.execute(text("ALTER TABLE category ADD COLUMN season VARCHAR(20) DEFAULT 'summer'"))
+        db.session.commit()
+        return "تم إضافة عمود الموسم بنجاح لقاعدة البيانات! <a href='/inventory'>اضغط هنا للعودة للمخزون</a>"
+    except Exception as e:
+        db.session.rollback()
+        return f"حدث خطأ: {str(e)} <br> <a href='/inventory'>العودة للمخزون</a>"
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
