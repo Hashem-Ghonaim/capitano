@@ -9832,5 +9832,19 @@ def fix_add_season_column():
         db.session.rollback()
         return f"حدث خطأ: {str(e)} <br> <a href='/inventory'>العودة للمخزون</a>"
 
+@app.route('/fix/zero_money_accounts')
+@login_required
+def fix_zero_money_accounts():
+    if current_user.role != 'general_manager': return "Unauthorized"
+    try:
+        accounts = MoneyAccount.query.all()
+        for acc in accounts:
+            acc.balance = 0.0
+        db.session.commit()
+        return "تم تصفير جميع الخزائن والحسابات بنجاح! <a href='/treasury'>العودة لإدارة السيولة</a>"
+    except Exception as e:
+        db.session.rollback()
+        return f"حدث خطأ: {str(e)} <br> <a href='/treasury'>العودة لإدارة السيولة</a>"
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
