@@ -34,10 +34,15 @@
     <div class="sticky-header">
         <div class="container d-flex justify-content-between align-items-center">
             <h4 class="fw-bold m-0 text-dark"><i class="fas fa-cut me-2 text-primary"></i> إدارة القصات (التصنيع)</h4>
-            <div class="d-flex gap-2">
-                <a href="/dashboard" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-right"></i> لوحة التحكم</a>
-                <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#addQassaModal">
-                    <i class="fas fa-plus-circle me-1"></i> إضافة قصة جديدة
+            <div class="d-flex gap-2 align-items-center">
+                <div class="input-group input-group-sm" style="min-width: 250px;">
+                    <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="factoryFilter" class="form-control border-start-0" placeholder="بحث باسم المصنع..." onkeyup="filterFactory()">
+                </div>
+                <span id="totalFactoryQty" class="badge bg-primary d-none fs-6">الكمية: 0</span>
+                <a href="/dashboard" class="btn btn-outline-secondary btn-sm text-nowrap"><i class="fas fa-arrow-right"></i> لوحة التحكم</a>
+                <button class="btn btn-primary btn-sm d-flex align-items-center text-nowrap" data-bs-toggle="modal" data-bs-target="#addQassaModal">
+                    <i class="fas fa-plus-circle me-1"></i> إضافة قصة
                 </button>
             </div>
         </div>
@@ -484,6 +489,55 @@
             document.getElementById('qassa_barcode_search').value = '';
         }
     }
+
+    function filterFactory() {
+        // Find which tab is active
+        const activeTab = document.querySelector('.nav-link.active').getAttribute('data-bs-target');
+        const tableId = activeTab === '#active' ? '#active table' : '#received table';
+        
+        const input = document.getElementById("factoryFilter").value.toUpperCase();
+        const table = document.querySelector(tableId);
+        const totalSpan = document.getElementById("totalFactoryQty");
+        
+        if (!table) return;
+        const tr = table.getElementsByTagName("tr");
+        let totalQty = 0;
+        let countVisible = 0;
+        
+        for (let i = 1; i < tr.length; i++) {
+            // Ignore rows that don't have enough columns (like "No qassat found" rows)
+            let tds = tr[i].getElementsByTagName("td");
+            if (tds.length < 5) continue;
+            
+            let tdFactory = tds[3];
+            let tdQty = tds[4];
+            
+            if (tdFactory && tdQty) {
+                let txtValue = tdFactory.textContent || tdFactory.innerText;
+                if (txtValue.toUpperCase().indexOf(input) > -1) {
+                    tr[i].style.display = "";
+                    totalQty += parseInt(tdQty.textContent || tdQty.innerText) || 0;
+                    countVisible++;
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+        
+        if (input.trim() === "") {
+            totalSpan.classList.add('d-none');
+        } else {
+            totalSpan.classList.remove('d-none');
+            totalSpan.textContent = "إجمالي الكمية: " + totalQty;
+        }
+    }
+
+    // Re-run filter when switching tabs so the total is calculated for the new active tab
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (event) {
+            filterFactory();
+        })
+    });
 </script>
 </body>
 </html>
