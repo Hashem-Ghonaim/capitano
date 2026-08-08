@@ -6360,7 +6360,7 @@ def reports_hub():
         ).count()
 
         # تحليل السلة (معقد للفلترة بالتاريخ مع SQL مباشر، سنتركه عاماً للتسهيل أو يمكن إضافة شرط التاريخ في جملة SQL)
-        sql = text("SELECT p1.name as p1_name, p2.name as p2_name, COUNT(*) as frequency FROM sale_item i1 JOIN sale_item i2 ON i1.order_id = i2.order_id JOIN sale_order o ON i1.order_id = o.id JOIN product_variant v1 ON i1.variant_id = v1.id JOIN product_variant v2 ON i2.variant_id = v2.id JOIN product_model p1 ON v1.model_id = p1.id JOIN product_model p2 ON v2.model_id = p2.id WHERE i1.variant_id < i2.variant_id AND o.is_proforma = 0 GROUP BY p1.name, p2.name ORDER BY frequency DESC LIMIT 5")
+        sql = text("SELECT p1.name as p1_name, p2.name as p2_name, COUNT(*) as frequency FROM sale_item i1 JOIN sale_item i2 ON i1.order_id = i2.order_id JOIN sale_order o ON i1.order_id = o.id JOIN product_variant v1 ON i1.variant_id = v1.id JOIN product_variant v2 ON i2.variant_id = v2.id JOIN product_model p1 ON v1.model_id = p1.id JOIN product_model p2 ON v2.model_id = p2.id WHERE i1.variant_id < i2.variant_id AND o.is_proforma = FALSE GROUP BY p1.name, p2.name ORDER BY frequency DESC LIMIT 5")
         market_basket = db.session.execute(sql).fetchall()
 
         data = {'top_customers': top_customers, 'market_basket': market_basket, 'new_customers': new_customers}
