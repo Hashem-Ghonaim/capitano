@@ -47,6 +47,16 @@ def fix_sequences_now():
             except Exception as e:
                 db.session.rollback()
                 results.append(f"Skipped {table_name}: {str(e)}")
+                
+        # محاولة إضافة عمود is_hidden
+        try:
+            db.session.execute(text("ALTER TABLE product_variant ADD COLUMN is_hidden BOOLEAN DEFAULT FALSE;"))
+            db.session.commit()
+            results.append("Added is_hidden column successfully")
+        except Exception as e:
+            db.session.rollback()
+            results.append(f"Column is_hidden might already exist or error: {str(e)}")
+            
         return "<br>".join(results)
     except Exception as e:
         return f"Error: {str(e)}"
@@ -236,6 +246,7 @@ class ProductVariant(db.Model):
     cost_price = db.Column(db.Float)
     sell_price = db.Column(db.Float)
     stock = db.Column(db.Integer, default=0)
+    is_hidden = db.Column(db.Boolean, default=False)
 
 class Qassa(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1557,7 +1568,7 @@ def pos():
     # 3. عرض الصفحة مع تمرير بيانات التعديل (لو وجدت)
     return render_template('pos.html',
                            categories=Category.query.all(),
-                           products=ProductVariant.query.all(),
+                           products=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all(),
                            customers=customers,
                            shipping_companies=ShippingCompany.query.all(),
                            money_accounts=MoneyAccount.query.all(),
@@ -4428,7 +4439,7 @@ def edit_proforma(id):
 
     return render_template('pos.html',
                            categories=Category.query.all(),
-                           products=ProductVariant.query.all(),
+                           products=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all(),
                            customers=customers,
                            shipping_companies=ShippingCompany.query.all(),
                            money_accounts=MoneyAccount.query.all(),
@@ -5706,7 +5717,7 @@ def new_purchase():
     return render_template('new_purchase.html',
                            suppliers=Supplier.query.all(),
                            categories=Category.query.all(),
-                           product_suggestions=ProductVariant.query.all())
+                           product_suggestions=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all())
     # =========================================================
 @app.route('/purchases/edit/<int:id>', methods=['GET', 'POST'])
 @permission_required('manage_inventory')
@@ -6561,7 +6572,24 @@ def product_profile(variant_id):
 
 @app.route('/inventory')
 @permission_required('view_inventory')
-def inventory(): return render_template('inventory.html', products=ProductVariant.query.all(), user=current_user, categories=Category.query.all())
+def inventory():
+    show_hidden = request.args.get('hidden', '0') == '1'
+    if show_hidden:
+        products = ProductVariant.query.filter_by(is_hidden=True).all()
+    else:
+        products = ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all()
+    
+    return render_template('inventory.html', products=products, user=current_user, categories=Category.query.all(), show_hidden=show_hidden)
+
+@app.route('/toggle_hide_product/<int:id>', methods=['POST'])
+@login_required
+@permission_required('manage_inventory')
+def toggle_hide_product(id):
+    variant = ProductVariant.query.get_or_404(id)
+    variant.is_hidden = not variant.is_hidden
+    db.session.commit()
+    flash(f"تم {'إخفاء' if variant.is_hidden else 'إظهار'} المنتج بنجاح.", 'success')
+    return redirect(request.referrer or url_for('inventory'))
 
 @app.route('/product/edit/<int:id>', methods=['POST'])
 @permission_required('manage_inventory')
@@ -8562,7 +8590,7 @@ def purchase_return():
     # في حالة الـ GET (عرض الصفحة)
     return render_template('new_purchase_return.html',
                            suppliers=Supplier.query.all(),
-                           product_suggestions=ProductVariant.query.all())
+                           product_suggestions=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all())
 @app.route('/fix/correct_settled_invoices')
 @login_required
 def correct_settled_invoices():
