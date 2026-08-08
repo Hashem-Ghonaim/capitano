@@ -41,7 +41,14 @@
     <form action="/purchases/new" method="POST" enctype="multipart/form-data" class="invoice-box">
 
         <div class="row g-3 mb-4 bg-light p-3 rounded">
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">موسم الفاتورة</label>
+                <select name="invoice_season" id="invoiceSeasonSelect" class="form-select" onchange="filterCategoriesBySeason()">
+                    <option value="winter" selected>❄️ شتوي</option>
+                    <option value="summer">☀️ صيفي</option>
+                </select>
+            </div>
+            <div class="col-md-3">
                 <label class="form-label fw-bold">اختر المورد</label>
                 <select name="supplier_id" class="form-select" id="supplierSelect" onchange="toggleNewSupplier()">
                     <option value="">-- اختر مورد --</option>
@@ -130,11 +137,29 @@
         {% endfor %}
     ];
 
-    const categoriesList = [
-        {% for c in categories %}
-            "{{ c.name }}",
-        {% endfor %}
-    ];
+    const categoriesData = {{ categories_data | safe }};
+    let categoriesList = categoriesData.filter(c => c.season === 'winter').map(c => c.name);
+
+    function filterCategoriesBySeason() {
+        const season = document.getElementById('invoiceSeasonSelect').value;
+        categoriesList = categoriesData.filter(c => c.season === season).map(c => c.name);
+        
+        let catOptions = '<option value="عام">عام</option>';
+        categoriesList.forEach(c => {
+            if(c !== 'عام') catOptions += `<option value="${c}">${c}</option>`;
+        });
+        
+        $('.cat-select').each(function() {
+            const currentVal = $(this).val();
+            $(this).html(catOptions);
+            // If the old category is in the new season list, keep it selected
+            if (categoriesList.includes(currentVal) || currentVal === 'عام') {
+                $(this).val(currentVal);
+            } else {
+                $(this).val('عام');
+            }
+        });
+    }
 
     // خوارزمية البحث المخصصة (كما هي)
     function matchCustom(params, data) {

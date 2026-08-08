@@ -221,6 +221,7 @@ class Attendance(db.Model):
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, nullable=False)
+    season = db.Column(db.String(20), default='summer')
 
 class ProductModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -5567,6 +5568,9 @@ def delete_expense(id):
 def new_purchase():
     if request.method == 'POST':
         supplier_id = request.form.get('supplier_id')
+        new_supplier_name = request.form.get('new_supplier_name')
+        new_supplier_phone = request.form.get('new_supplier_phone')
+        invoice_season = request.form.get('invoice_season', 'summer')
 
         # استقبال البيانات من الفورم كقوائم
         product_ids = request.form.getlist('product_id[]') # الحقل المخفي للـ ID
@@ -5577,9 +5581,6 @@ def new_purchase():
         barcodes = request.form.getlist('barcode[]')
         categories = request.form.getlist('category[]')
         images = request.files.getlist('image[]')
-
-        new_supp_name = request.form.get('new_supplier_name')
-        new_supp_phone = request.form.get('new_supplier_phone')
 
         if not names:
             flash('لم يتم إدخال أصناف!', 'warning')
@@ -5644,7 +5645,7 @@ def new_purchase():
             # أ) تحديد الكاتيجوري أولاً
             cat = Category.query.filter_by(name=p_category).first()
             if not cat:
-                cat = Category(name=p_category)
+                cat = Category(name=p_category, season=invoice_season)
                 db.session.add(cat)
                 db.session.flush()
 
@@ -5713,11 +5714,15 @@ def new_purchase():
         flash(f'تم حفظ الفاتورة بنجاح ✅ (إجمالي: {total_invoice_cost} ج.م)', 'success')
         return redirect(url_for('inventory'))
 
-    # عرض الصفحة (GET)
+    # GET request
+    import json
+    categories_data = [{'name': c.name, 'season': c.season} for c in Category.query.all()]
     return render_template('new_purchase.html',
                            suppliers=Supplier.query.all(),
                            categories=Category.query.all(),
-                           product_suggestions=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all())
+                           categories_data=json.dumps(categories_data),
+                           product_suggestions=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all(),
+                           products=ProductVariant.query.all())
     # =========================================================
 @app.route('/purchases/edit/<int:id>', methods=['GET', 'POST'])
 @permission_required('manage_inventory')
@@ -6574,12 +6579,19 @@ def product_profile(variant_id):
 @permission_required('view_inventory')
 def inventory():
     show_hidden = request.args.get('hidden', '0') == '1'
-    if show_hidden:
-        products = ProductVariant.query.filter_by(is_hidden=True).order_by(ProductVariant.id.asc()).all()
-    else:
-        products = ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).order_by(ProductVariant.id.asc()).all()
+    season = request.args.get('season', 'winter')
     
-    return render_template('inventory.html', products=products, user=current_user, categories=Category.query.all(), show_hidden=show_hidden)
+    query = ProductVariant.query.join(ProductModel).join(Category).filter(Category.season == season)
+    
+    if show_hidden:
+        products = query.filter(ProductVariant.is_hidden==True).order_by(ProductVariant.id.asc()).all()
+    else:
+        products = query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).order_by(ProductVariant.id.asc()).all()
+    
+    # Send categories of the selected season
+    season_categories = Category.query.filter_by(season=season).all()
+    
+    return render_template('inventory.html', products=products, user=current_user, categories=season_categories, show_hidden=show_hidden, current_season=season)
 
 @app.route('/toggle_hide_product/<int:id>', methods=['POST'])
 @login_required
