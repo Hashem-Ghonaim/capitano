@@ -2700,15 +2700,40 @@ def financial_details():
                 SaleOrder.user_id.in_(mgr_detail_ids)
             )
             orders = orders_query.order_by(SaleOrder.date.desc()).all()
+            
+            computed_total = 0
+            
             for o in orders:
                 order_items_count = sum(i.quantity for i in o.items)
                 if order_items_count > 0:
+                    computed_total += order_items_count
                     results.append({
                         'date': o.date.strftime('%Y-%m-%d %H:%M') if o.date else '',
                         'category': f"قطع فاتورة #{o.id}",
                         'amount': float(order_items_count),
                         'note': f"العميل: {o.customer.name if o.customer else 'بدون عميل'}" + (f" - بواسطة: {o.sales_rep.fullname}" if getattr(o, 'sales_rep', None) else "")
                     })
+                    
+            # --- إضافة المرتجعات وطرحها من الإجمالي ---
+            returns_query = ReturnInvoice.query.join(SaleOrder).filter(
+                ReturnInvoice.date >= start_date, ReturnInvoice.date < end_date,
+                SaleOrder.user_id.in_(mgr_detail_ids)
+            )
+            returns = returns_query.order_by(ReturnInvoice.date.desc()).all()
+            for r in returns:
+                if r.total_qty and r.total_qty > 0:
+                    computed_total -= r.total_qty
+                    results.append({
+                        'date': r.date.strftime('%Y-%m-%d %H:%M') if r.date else '',
+                        'category': f"مرتجع على فاتورة #{r.order_id}",
+                        'amount': float(-r.total_qty),
+                        'note': f"عدد القطع المرتجعة: {r.total_qty}" + (f" - ملاحظات: {r.notes}" if getattr(r, 'notes', None) else "")
+                    })
+            
+            computed_total = max(0, computed_total)
+            # نرجع البيانات مع المجموع المحسوب
+            results.sort(key=lambda x: x['date'], reverse=True)
+            return jsonify({'items': results, 'computed_total': computed_total})
         else:
             # --- الشركاء: نستخدم SaleOrder مباشرة (نفس مصدر الكارت للشركاء) ---
             orders_query = SaleOrder.query.filter(
