@@ -1986,16 +1986,7 @@ def profile():
         else:
             # --- حسابات المديرين العاديين (بناءً على 14 جنيه ثابتة) ---
             
-            # الدخل الخاص بالمدير العادي يتم جلبه من جدول حركاته (commission_gross)
-            # صافي الإيراد (يشمل المرتجعات السالبة) - يستخدم في حساب الأرباح وعرض القطع
-            global_gross_query = db.session.query(func.sum(PartnerTransaction.amount))\
-                .filter(PartnerTransaction.partner_id == u.id,
-                        PartnerTransaction.type == 'commission_gross',
-                        PartnerTransaction.date >= month_start,
-                        PartnerTransaction.date < month_end).scalar() or 0.0
-            global_gross = global_gross_query
-
-            # عدد القطع الصافي — محسوب من الفواتير مباشرة (وليس من العمولات) لضمان الدقة
+            # عدد القطع الصافي — محسوب من الفواتير مباشرة لضمان التطابق التام
             mgr_team_ids = [u.id] + [t.id for t in User.query.filter(User.manager_id == u.id).all()]
             gross_team_items = db.session.query(func.sum(SaleItem.quantity))\
                 .join(SaleOrder)\
@@ -2009,6 +2000,9 @@ def profile():
                         ReturnInvoice.date >= month_start,
                         ReturnInvoice.date < month_end).scalar() or 0
             global_team_items = max(0, gross_team_items - returned_team_items)
+
+            # العمولة الكلية = عدد القطع الصافي * 14
+            global_gross = global_team_items * 14.0
 
             # مصاريف تخص فريق المدير ده فقط
             global_girls_comm = get_transaction_sum('sub_commission', u.id)
