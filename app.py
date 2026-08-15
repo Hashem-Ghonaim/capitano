@@ -9444,6 +9444,50 @@ def fix_sync_expense_names():
     flash(f'تم تحديث {count} مصروف شخصي للأسماء الصحيحة ✅', 'success')
     return redirect(url_for('expenses'))
 
+@app.route('/fix/sync_somaya_accounts')
+@login_required
+def fix_sync_somaya_accounts():
+    """أداة إصلاح رجعي: استرجاع حركات الشريك المفقودة لسمية في المصروفات"""
+    if current_user.role != 'general_manager':
+        return "غير مصرح", 403
+
+    somaya = User.query.filter(User.fullname.like('%سميه%') | User.username.like('%سمية%') | User.username.like('%SMSM%')).first()
+    if not somaya:
+        flash('لم يتم العثور على حساب سمية', 'danger')
+        return redirect(url_for('expenses'))
+
+    expenses = Expense.query.filter(Expense.description.like(f'%شخصي: {somaya.fullname}%')).all()
+    missing_count = 0
+
+    for exp in expenses:
+        exp_date_str = exp.date.strftime('%Y-%m-%d')
+        
+        matching_pt = PartnerTransaction.query.filter(
+            PartnerTransaction.partner_id == somaya.id,
+            db.func.abs(PartnerTransaction.amount) == exp.amount,
+            db.func.date(PartnerTransaction.date) == exp_date_str
+        ).first()
+
+        if not matching_pt:
+            is_salary = "صرف راتب" in exp.description
+            trans_type = 'personal_salary_expense' if is_salary else 'personal_expense_share'
+            clean_desc = exp.description.replace(f"(شخصي: {somaya.fullname})", "").strip()
+            pt_desc = f"{clean_desc} [تمت مزامنته تلقائياً]"
+
+            new_pt = PartnerTransaction(
+                partner_id=somaya.id,
+                type=trans_type,
+                amount=-exp.amount,
+                description=pt_desc,
+                date=exp.date
+            )
+            db.session.add(new_pt)
+            missing_count += 1
+
+    db.session.commit()
+    flash(f'تم استرجاع وإضافة {missing_count} حركة شخصية مفقودة لسمية بنجاح ✅', 'success')
+    return redirect(url_for('expenses'))
+
 @app.route('/fix/sync_customer_balances')
 @login_required
 def fix_sync_customer_balances():
