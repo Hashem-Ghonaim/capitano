@@ -5577,11 +5577,32 @@ def delete_expense(id):
             pt_desc2 = f"مصروف شخصي: {clean_desc}"
             pt_desc3 = f"حصة (20%): {exp.description}"
             
-            # Delete transactions that match the exact description and are related to this expense amount
-            db.session.query(PartnerTransaction).filter(
+            # 1. Fetch matching transactions regardless of date first
+            pts = db.session.query(PartnerTransaction).filter(
                 PartnerTransaction.description.in_([pt_desc1, pt_desc2, pt_desc3]),
                 PartnerTransaction.amount.in_([-exp.amount, -exp.amount/2, -exp.amount/5])
-            ).delete(synchronize_session=False)
+            ).all()
+            
+            # 2. Filter exactly by same day to avoid deleting old unrelated ones
+            exp_date_str = exp.date.strftime('%Y-%m-%d') if hasattr(exp.date, 'strftime') else str(exp.date)[:10]
+            same_day_pts = []
+            for p in pts:
+                p_date_str = p.date.strftime('%Y-%m-%d') if hasattr(p.date, 'strftime') else str(p.date)[:10]
+                if p_date_str == exp_date_str:
+                    same_day_pts.append(p)
+                    
+            # 3. Limit deletions based on expected counts
+            descs_to_delete = {
+                pt_desc2: 1, # Personal
+                pt_desc1: 2, # Partnership
+                pt_desc3: 5  # Split
+            }
+            
+            for desc, limit in descs_to_delete.items():
+                matched = [p for p in same_day_pts if p.description == desc]
+                for p in matched[:limit]:
+                    db.session.delete(p)
+
         except Exception as e:
             pass
 
@@ -9444,48 +9465,56 @@ def fix_sync_expense_names():
     flash(f'تم تحديث {count} مصروف شخصي للأسماء الصحيحة ✅', 'success')
     return redirect(url_for('expenses'))
 
-@app.route('/fix/sync_somaya_accounts')
+@app.route('/fix/sync_all_managers_accounts')
 @login_required
-def fix_sync_somaya_accounts():
-    """أداة إصلاح رجعي: استرجاع حركات الشريك المفقودة لسمية في المصروفات"""
+def fix_sync_all_managers_accounts():
+    """أداة إصلاح رجعي: استرجاع حركات الشريك المفقودة لجميع المديرين في المصروفات"""
     if current_user.role != 'general_manager':
         return "غير مصرح", 403
 
-    somaya = User.query.filter(User.fullname.like('%سميه%') | User.username.like('%سمية%') | User.username.like('%SMSM%')).first()
-    if not somaya:
-        flash('لم يتم العثور على حساب سمية', 'danger')
-        return redirect(url_for('expenses'))
-
-    expenses = Expense.query.filter(Expense.description.like(f'%شخصي: {somaya.fullname}%')).all()
+    users = User.query.all()
     missing_count = 0
 
-    for exp in expenses:
-        exp_date_str = exp.date.strftime('%Y-%m-%d')
+    for user in users:
+        if not user.fullname: continue
         
-        matching_pt = PartnerTransaction.query.filter(
-            PartnerTransaction.partner_id == somaya.id,
-            db.func.abs(PartnerTransaction.amount) == exp.amount,
-            db.func.date(PartnerTransaction.date) == exp_date_str
-        ).first()
+        # البحث عن مصروفات مسجلة كشخصية لهذا المدير
+        expenses = Expense.query.filter(Expense.description.like(f'%شخصي: {user.fullname}%')).all()
+        
+        for exp in expenses:
+            exp_date_str = exp.date.strftime('%Y-%m-%d') if hasattr(exp.date, 'strftime') else str(exp.date)[:10]
+            
+            # جلب حركات المدير في هذا اليوم وبنفس المبلغ
+            pts = PartnerTransaction.query.filter(
+                PartnerTransaction.partner_id == user.id,
+                db.func.abs(PartnerTransaction.amount) == exp.amount
+            ).all()
+            
+            matched = False
+            for pt in pts:
+                pt_date_str = pt.date.strftime('%Y-%m-%d') if hasattr(pt.date, 'strftime') else str(pt.date)[:10]
+                if pt_date_str == exp_date_str:
+                    matched = True
+                    break
 
-        if not matching_pt:
-            is_salary = "صرف راتب" in exp.description
-            trans_type = 'personal_salary_expense' if is_salary else 'personal_expense_share'
-            clean_desc = exp.description.replace(f"(شخصي: {somaya.fullname})", "").strip()
-            pt_desc = f"{clean_desc} [تمت مزامنته تلقائياً]"
+            if not matched:
+                is_salary = "صرف راتب" in exp.description
+                trans_type = 'personal_salary_expense' if is_salary else 'personal_expense_share'
+                clean_desc = exp.description.replace(f"(شخصي: {user.fullname})", "").strip()
+                pt_desc = f"{clean_desc} [تمت مزامنته تلقائياً]"
 
-            new_pt = PartnerTransaction(
-                partner_id=somaya.id,
-                type=trans_type,
-                amount=-exp.amount,
-                description=pt_desc,
-                date=exp.date
-            )
-            db.session.add(new_pt)
-            missing_count += 1
+                new_pt = PartnerTransaction(
+                    partner_id=user.id,
+                    type=trans_type,
+                    amount=-exp.amount,
+                    description=pt_desc,
+                    date=exp.date
+                )
+                db.session.add(new_pt)
+                missing_count += 1
 
     db.session.commit()
-    flash(f'تم استرجاع وإضافة {missing_count} حركة شخصية مفقودة لسمية بنجاح ✅', 'success')
+    flash(f'تم استرجاع وإضافة {missing_count} حركة شخصية مفقودة للمديرين بنجاح ✅', 'success')
     return redirect(url_for('expenses'))
 
 @app.route('/fix/sync_customer_balances')
