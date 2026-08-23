@@ -66,7 +66,7 @@
                         <td class="text-start">
                             {% if item.variant %}
                                 <div class="d-flex align-items-center">
-                                    <img src="/static/uploads/{{ item.variant.model.image }}" class="rounded ms-2 border" width="40" height="40" style="object-fit: cover;">
+                                    <img loading="lazy" src="/static/uploads/{{ item.variant.model.image }}" class="rounded ms-2 border" width="40" height="40" style="object-fit: cover;">
                                     <div>
                                         <div class="fw-bold">{{ item.variant.model.name }}</div>
                                         <small class="text-muted">{{ item.variant.model.category.name }}</small>

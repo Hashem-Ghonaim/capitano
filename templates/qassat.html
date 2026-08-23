@@ -110,9 +110,9 @@
                         <tr class="{% if days > 16 %}row-red{% elif days > 12 %}row-orange{% elif days > 6 %}row-yellow{% endif %}">
                             <td>
                                 {% if q.product_model_id %}
-                                    <img src="/static/uploads/{{ q.product_model.image }}" alt="img">
+                                    <img loading="lazy" src="/static/uploads/{{ q.product_model.image }}" alt="img">
                                 {% else %}
-                                    <img src="/static/uploads/{{ q.custom_image }}" alt="img">
+                                    <img loading="lazy" src="/static/uploads/{{ q.custom_image }}" alt="img">
                                 {% endif %}
                             </td>
                             <td class="fw-bold">
@@ -252,9 +252,9 @@
                                 <tr>
                                     <td>
                                         {% if q.product_model_id %}
-                                            <img src="/static/uploads/{{ q.product_model.image }}" alt="img">
+                                            <img loading="lazy" src="/static/uploads/{{ q.product_model.image }}" alt="img">
                                         {% else %}
-                                            <img src="/static/uploads/{{ q.custom_image }}" alt="img">
+                                            <img loading="lazy" src="/static/uploads/{{ q.custom_image }}" alt="img">
                                         {% endif %}
                                     </td>
                                     <td class="fw-bold">

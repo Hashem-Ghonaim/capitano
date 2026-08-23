@@ -84,49 +84,55 @@ app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static/uploads')
 import urllib.request
 import urllib.error
 
-def save_uploaded_file(file_obj, filename):
-    supabase_url = os.environ.get('SUPABASE_URL')
-    supabase_key = os.environ.get('SUPABASE_SECRET_KEY')
-    
-    if supabase_url and supabase_key:
-        try:
-            url = f"{supabase_url}/storage/v1/object/uploads/{filename}"
-            headers = {
-                "Authorization": f"Bearer {supabase_key}",
-                "apikey": supabase_key,
-                "Content-Type": getattr(file_obj, 'mimetype', 'application/octet-stream'),
-                "x-upsert": "true"
-            }
-            file_content = file_obj.read()
-            try:
-                from PIL import Image
-                import io
-                img = Image.open(io.BytesIO(file_content))
-                if img.width > 800:
-                    ratio = 800.0 / img.width
-                    img = img.resize((800, int(img.height * ratio)), Image.LANCZOS)
-                output = io.BytesIO()
-                img_format = img.format if img.format else 'PNG'
-                if img_format == 'JPEG':
-                    img.save(output, format=img_format, optimize=True, quality=60)
-                else:
-                    img.save(output, format=img_format, optimize=True)
-                file_content = output.getvalue()
-            except Exception as e:
-                print("Image compression failed:", e)
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
-            req = urllib.request.Request(url, data=file_content, headers=headers, method='POST')
-            with urllib.request.urlopen(req) as response:
-                pass
-            return True
+cloudinary.config(
+  cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', 'jjxkbp4v'),
+  api_key = os.environ.get('CLOUDINARY_API_KEY', '718338864994835'),
+  api_secret = os.environ.get('CLOUDINARY_API_SECRET', 'TDXOebqzLyjlf23JjlRGnTY3nCQ'),
+  secure = True
+)
+
+def save_uploaded_file(file_obj, filename):
+    try:
+        file_content = file_obj.read()
+        try:
+            from PIL import Image
+            import io
+            img = Image.open(io.BytesIO(file_content))
+            if img.width > 800:
+                ratio = 800.0 / img.width
+                img = img.resize((800, int(img.height * ratio)), Image.LANCZOS)
+            output = io.BytesIO()
+            img_format = img.format if img.format else 'PNG'
+            if img_format == 'JPEG':
+                img.save(output, format=img_format, optimize=True, quality=60)
+            else:
+                img.save(output, format=img_format, optimize=True)
+            file_content = output.getvalue()
         except Exception as e:
-            print(f"Error uploading to Supabase: {e}")
-            file_obj.seek(0)
-            file_obj.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            return False
-    else:
-        file_obj.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            print("Image compression failed:", e)
+
+        # Upload to Cloudinary
+        res = cloudinary.uploader.upload(
+            file_content,
+            public_id=filename.rsplit('.', 1)[0] if '.' in filename else filename,
+            format=filename.rsplit('.', 1)[1] if '.' in filename else None,
+            resource_type="image",
+            use_filename=True,
+            unique_filename=False,
+            overwrite=True
+        )
         return True
+    except Exception as e:
+        print(f"Error uploading to Cloudinary: {e}")
+        # Fallback to local save if Cloudinary fails (mostly for local development without internet)
+        file_obj.seek(0)
+        file_obj.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return False
+
 
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 

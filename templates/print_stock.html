@@ -132,7 +132,7 @@
                     <td>{{ p.id }}</td>
                     <td class="img-col">
                         {% if p.model.image %}
-                        <img src="/static/uploads/{{ p.model.image }}">
+                        <img loading="lazy" src="/static/uploads/{{ p.model.image }}">
                         {% endif %}
                     </td>
                     <td style="text-align: right; font-weight: bold;">{{ p.model.name }}</td>

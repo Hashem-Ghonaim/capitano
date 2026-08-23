@@ -235,9 +235,9 @@
                 <div class="header-grid">
                     <div style="width: 40%; text-align: right;">
                         {% if global_company_logo %}
-                        <img src="/static/uploads/{{ global_company_logo }}" class="logo-img" crossorigin="anonymous">
+                        <img loading="lazy" src="/static/uploads/{{ global_company_logo }}" class="logo-img" crossorigin="anonymous">
                         {% elif company_logo %}
-                        <img src="/static/uploads/{{ company_logo }}" class="logo-img" crossorigin="anonymous">
+                        <img loading="lazy" src="/static/uploads/{{ company_logo }}" class="logo-img" crossorigin="anonymous">
                         {% else %}
                         <h2 class="fw-bold text-primary m-0">اسم الشركة</h2>
                         {% endif %}

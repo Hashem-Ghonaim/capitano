@@ -153,7 +153,7 @@
                                     <td>
                                         {% if pay.receipt_image %}
                                         <a href="/static/uploads/{{ pay.receipt_image }}" target="_blank">
-                                            <img src="/static/uploads/{{ pay.receipt_image }}" class="rounded border"
+                                            <img loading="lazy" src="/static/uploads/{{ pay.receipt_image }}" class="rounded border"
                                                 width="60" height="40">
                                         </a>
                                         {% else %}

@@ -155,13 +155,13 @@
                                 <label class="form-label fw-bold small">شعار الشركة (Logo)</label>
                                 <div class="logo-upload-area" onclick="document.getElementById('logoInput').click()">
                                     {% if company_logo %}
-                                        <img id="logoPreview" src="/static/uploads/{{ company_logo }}" class="logo-preview">
+                                        <img loading="lazy" id="logoPreview" src="/static/uploads/{{ company_logo }}" class="logo-preview">
                                     {% else %}
                                         <div id="placeholderIcon" class="text-center">
                                             <i class="fas fa-cloud-upload-alt upload-icon"></i>
                                             <div class="small text-muted">اضغط لرفع صورة</div>
                                         </div>
-                                        <img id="logoPreview" src="" class="logo-preview" style="display: none;">
+                                        <img loading="lazy" id="logoPreview" src="" class="logo-preview" style="display: none;">
                                     {% endif %}
                                 </div>
                                 <input type="file" name="company_logo" id="logoInput" class="d-none" accept="image/*" onchange="previewImage(this)">

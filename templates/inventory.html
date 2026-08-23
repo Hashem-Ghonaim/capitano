@@ -172,14 +172,14 @@
                                 <td>
                                     {% if current_user.role != 'manager' %}
                                     <label class="img-editable" title="اضغط لتغيير الصورة">
-                                        <img id="img_preview_{{ p.id }}" src="/static/uploads/{{ p.model.image }}"
+                                        <img loading="lazy" id="img_preview_{{ p.id }}" src="/static/uploads/{{ p.model.image }}"
                                             class="rounded border"
                                             style="width: 50px; height: 50px; object-fit: contain;">
                                         <input type="file" class="d-none"
                                             onchange="uploadProductImage({{ p.id }}, this)" accept="image/*">
                                     </label>
                                     {% else %}
-                                    <img src="/static/uploads/{{ p.model.image }}" class="rounded border"
+                                    <img loading="lazy" src="/static/uploads/{{ p.model.image }}" class="rounded border"
                                         style="width: 50px; height: 50px; object-fit: contain;">
                                     {% endif %}
                                 </td>

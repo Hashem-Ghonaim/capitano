@@ -137,7 +137,7 @@
     <div id="print-container">
         {% for p in products %}
         <div class="product-page">
-            <img src="/static/uploads/{{ p.model.image }}" class="prod-image" onerror="this.style.display='none'">
+            <img loading="lazy" src="/static/uploads/{{ p.model.image }}" class="prod-image" onerror="this.style.display='none'">
             <div class="prod-name">{{ p.model.name }}</div>
             <div class="prod-cat">{{ p.model.category.name }}</div>
             <div class="info-box">
