@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import json
 import pytz
 import math
@@ -69,7 +71,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
     if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
+        database_url = database_url.replace("postgres://", "postgresql+pg8000://", 1)
+    elif database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+pg8000://", 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'erp_crm.db')
@@ -140,6 +144,19 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
 db = SQLAlchemy(app)
+
+@app.route('/static/uploads/<path:filename>')
+def serve_cloudinary_image(filename):
+    local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(local_path):
+        from flask import send_from_directory
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    
+    from cloudinary.utils import cloudinary_url
+    from flask import redirect
+    public_id = filename.rsplit('.', 1)[0] if '.' in filename else filename
+    url, _ = cloudinary_url(public_id)
+    return redirect(url)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -3308,8 +3325,8 @@ def shipping_dashboard():
         flash('غير مصرح لك', 'danger')
         return redirect(url_for('dashboard'))
 
-    # شيماء (SHIMAA01) أو EMP201 يشوفوا كل فواتير الشحن بدون فلتر
-    if current_user.username in ['SHIMAA01', 'Abo_malek'] or current_user.emp_code == 'EMP201' or current_user.role == 'general_manager':
+    # شيماء (SHIMAA01) أو EMP201 أو Amira يشوفوا كل فواتير الشحن بدون فلتر
+    if current_user.username in ['SHIMAA01', 'Abo_malek', 'Amira'] or current_user.emp_code == 'EMP201' or current_user.role == 'general_manager':
         orders = SaleOrder.query.filter(
             SaleOrder.is_shipping == True,
             SaleOrder.shipping_status.in_(['none', 'pending', 'shipped', 'delivered', 'returned'])
@@ -9953,4 +9970,4 @@ def fix_zero_money_accounts():
         return f"حدث خطأ: {str(e)} <br> <a href='/treasury'>العودة لإدارة السيولة</a>"
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', port=5001)
