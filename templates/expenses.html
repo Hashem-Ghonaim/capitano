@@ -44,7 +44,7 @@
                                 onchange="togglePartnerSelect()">
                                 <option value="partnership" class="text-primary">🤝 الشراكة (50% Abo Eyad - 50% Abo_malek)</option>
                                 <option value="personal" class="text-danger">👤 حساب شخصي (لمدير محدد)</option>
-                                <option value="split_4" class="text-success" selected>👥 مقسم على 5 (20% لكل شخص)</option>
+                                <option value="split_4" class="text-success" selected>👥 مقسم على 7</option>
                             </select>
                         </div>
 
@@ -127,7 +127,7 @@
                                 {% if '(شراكة)' in exp.description or exp.is_shared %}
                                 <span class="badge bg-success">الشراكة (50/50)</span>
                                 {% elif '(مقسم)' in exp.description %}
-                                <span class="badge bg-dark">مقسم على 5</span>
+                                <span class="badge bg-dark">مقسم على 7</span>
                                 {% elif '(شخصي:' in exp.description %}
                                 {% set p_name = exp.description.split('(شخصي: ')[1].split(')')[0] if '(شخصي: ' in
                                 exp.description else 'غير معروف' %}
