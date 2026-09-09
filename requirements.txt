@@ -6,3 +6,4 @@ Pillow>=10.2.0
 pg8000
 pytz==2023.3.post1
 cloudinary==1.46.0
+python-dotenv
