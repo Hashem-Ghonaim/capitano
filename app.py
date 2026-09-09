@@ -5509,32 +5509,21 @@ def expenses():
                 new_expense.description = f"{clean_desc} (مقسم)".strip()
                 new_expense.is_shared = False
                 
-                share_20 = amount / 5
+                share_7 = amount / 7
                 
-                # 20% لكل شخص
-                all_split_users = ['Elsayd_Elwekel', 'SMSM_Hamdy', 'Ehab_habls']
+                # مقسم على 7
+                all_split_users = ['Elsayd_Elwekel', 'SMSM_Hamdy', 'Ehab_habls', 'Dina_hamdy', 'Dina_reda', 'Abo_Eyad', 'Abo_malek']
                 for m_username in all_split_users:
                     mgr = User.query.filter_by(username=m_username).first()
+                    # fallback for Abo_Eyad if he uses 'gm'
+                    if not mgr and m_username == 'Abo_Eyad':
+                        mgr = User.query.filter_by(role='general_manager').first()
+                        
                     if mgr:
                         db.session.add(PartnerTransaction(
-                            partner_id=mgr.id, type='expense_share', amount=-share_20,
-                            description=f"حصة (20%): {new_expense.description}", date=cairo_now()
+                            partner_id=mgr.id, type='expense_share', amount=-share_7,
+                            description=f"حصة شراكة: {new_expense.description}", date=cairo_now()
                         ))
-                
-                # 20% أبو إياد + 20% أبو مالك
-                gm = User.query.filter_by(username='gm').first() or User.query.filter_by(role='general_manager').first()
-                abo_malek = User.query.filter_by(username='Abo_malek').first()
-                
-                if gm:
-                    db.session.add(PartnerTransaction(
-                        partner_id=gm.id, type='expense_share', amount=-share_20,
-                        description=f"حصة (20%): {new_expense.description}", date=cairo_now()
-                    ))
-                if abo_malek:
-                    db.session.add(PartnerTransaction(
-                        partner_id=abo_malek.id, type='expense_share', amount=-share_20,
-                        description=f"حصة (20%): {new_expense.description}", date=cairo_now()
-                    ))
 
             # حفظ المصروف
             db.session.add(new_expense)
@@ -5558,7 +5547,7 @@ def expenses():
     # العرض
     categories = ExpenseCategory.query.all()
     all_expenses = Expense.query.order_by(Expense.date.desc()).limit(100).all()
-    partners = User.query.filter_by(role='manager').all()
+    partners = User.query.filter(User.username.in_(['Elsayd_Elwekel', 'SMSM_Hamdy', 'Ehab_habls', 'Dina_hamdy', 'Dina_reda', 'Abo_Eyad', 'Abo_malek'])).all()
     accounts = MoneyAccount.query.all()
 
     return render_template('expenses.html', categories=categories, expenses=all_expenses, partners=partners, accounts=accounts)
@@ -8323,7 +8312,7 @@ def partner_settlement_all():
             return redirect(url_for('partners_report'))
 
         account = MoneyAccount.query.get(account_id)
-        partners = User.query.filter_by(role='manager').all()
+        partners = User.query.filter(User.username.in_(['Elsayd_Elwekel', 'SMSM_Hamdy', 'Ehab_habls', 'Dina_hamdy', 'Dina_reda', 'Abo_Eyad', 'Abo_malek'])).all()
 
         net_payout = 0
 
@@ -9064,24 +9053,17 @@ def _record_partner_salary_expense(emp, net_salary, description, session):
             session.add(PartnerTransaction(partner_id=abo_malek.id, type='salary_expense', amount=-half_amount, description=f"{description} [شراكة 50%]"))
             
     elif method == 'split_4':
-        # 2. مقسم على 5: 20% لكل واحد (3 مديرين + أبو إياد + أبو مالك)
-        share_20 = net_salary / 5
+        # 2. مقسم على 7 مديرين
+        share_7 = net_salary / 7
         
-        # 20% لكل مدير
-        managers_to_split = ['Elsayd_Elwekel', 'SMSM_Hamdy', 'Ehab_habls']
-        for m_username in managers_to_split:
+        all_split_users = ['Elsayd_Elwekel', 'SMSM_Hamdy', 'Ehab_habls', 'Dina_hamdy', 'Dina_reda', 'Abo_Eyad', 'Abo_malek']
+        for m_username in all_split_users:
             mgr = User.query.filter_by(username=m_username).first()
-            if mgr:
-                session.add(PartnerTransaction(partner_id=mgr.id, type='salary_expense', amount=-share_20, description=f"{description} [حصة 20%]"))
+            if not mgr and m_username == 'Abo_Eyad':
+                mgr = User.query.filter_by(role='general_manager').first()
                 
-        # 20% أبو إياد + 20% أبو مالك
-        gm = User.query.filter_by(username='gm').first() or User.query.filter_by(role='general_manager').first()
-        abo_malek = User.query.filter_by(username='Abo_malek').first()
-        
-        if gm:
-            session.add(PartnerTransaction(partner_id=gm.id, type='salary_expense', amount=-share_20, description=f"{description} [حصة 20%]"))
-        if abo_malek:
-            session.add(PartnerTransaction(partner_id=abo_malek.id, type='salary_expense', amount=-share_20, description=f"{description} [حصة 20%]"))
+            if mgr:
+                session.add(PartnerTransaction(partner_id=mgr.id, type='salary_expense', amount=-share_7, description=f"{description} [حصة شراكة]"))
 
     else:
         # 3. حساب شخصي (المدير المباشر)
