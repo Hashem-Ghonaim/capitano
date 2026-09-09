@@ -141,7 +141,10 @@ def save_uploaded_file(file_obj, filename):
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+    try:
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+    except OSError:
+        pass
 
 db = SQLAlchemy(app)
 
