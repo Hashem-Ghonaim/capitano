@@ -230,6 +230,13 @@
                                             <label class="form-check-label small text-danger fw-bold"
                                                 for="p12_{{ employee.id }}">إدارة الموظفين</label>
                                         </div>
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input manage-perm" type="checkbox" name="perms"
+                                                value="revert_to_proforma" id="p16_{{ employee.id }}" {% if
+                                                employee.has_perm('revert_to_proforma') %}checked{% endif %}>
+                                            <label class="form-check-label small text-danger fw-bold"
+                                                for="p16_{{ employee.id }}">إرجاع الفاتورة لعرض سعر</label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
