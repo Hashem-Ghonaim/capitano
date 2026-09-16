@@ -186,6 +186,7 @@
                                     <th>الخزينة المستلمة</th>
                                     <th>بواسطة</th>
                                     <th>ملاحظات</th>
+                                    <th>إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -196,10 +197,15 @@
                                     <td><span class="badge bg-dark">{{ pay.account.name }}</span></td>
                                     <td class="small">{{ pay.created_by.fullname if pay.created_by else '---' }}</td>
                                     <td class="text-muted small">{{ pay.notes or '-' }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger fw-bold" onclick="deletePayment('customer', {{ pay.id }})">
+                                            <i class="fas fa-trash"></i> حذف
+                                        </button>
+                                    </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="5" class="py-5 text-muted">لم يتم تسجيل أي دفعات "من الحساب" بعد</td>
+                                    <td colspan="6" class="py-5 text-muted">لم يتم تسجيل أي دفعات "من الحساب" بعد</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -446,6 +452,65 @@
             }
         });
     });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function deletePayment(type, id) {
+            Swal.fire({
+                title: 'هل أنت متأكد؟',
+                text: "سيتم حذف هذه العملية وتحديث أرصدة الخزينة والعميل/المورد!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'نعم، احذف!',
+                cancelButtonText: 'إلغاء'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'أدخل كلمة المرور الخاصة بالمدير',
+                        input: 'password',
+                        inputAttributes: {
+                            autocapitalize: 'off'
+                        },
+                        showCancelButton: true,
+                        confirmButtonText: 'تأكيد',
+                        cancelButtonText: 'إلغاء',
+                        showLoaderOnConfirm: true,
+                        preConfirm: (password) => {
+                            return fetch('/api/delete_payment', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ type: type, id: id, password: password })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (!data.success) {
+                                    throw new Error(data.message)
+                                }
+                                return data;
+                            })
+                            .catch(error => {
+                                Swal.showValidationMessage(`خطأ: ${error.message}`)
+                            })
+                        },
+                        allowOutsideClick: () => !Swal.isLoading()
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire({
+                                title: 'تم!',
+                                text: 'تم حذف العملية وتحديث الأرصدة بنجاح.',
+                                icon: 'success'
+                            }).then(() => {
+                                location.reload();
+                            });
+                        }
+                    })
+                }
+            })
+        }
     </script>
 </body>
 

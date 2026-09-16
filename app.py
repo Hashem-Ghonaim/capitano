@@ -9954,5 +9954,81 @@ def fix_zero_money_accounts():
         db.session.rollback()
         return f"حدث خطأ: {str(e)} <br> <a href='/treasury'>العودة لإدارة السيولة</a>"
 
+@app.route('/api/delete_payment', methods=['POST'])
+def delete_payment():
+    try:
+        data = request.get_json()
+        password = data.get('password')
+        payment_type = data.get('type')
+        payment_id = data.get('id')
+
+        if password != '1712':
+            return jsonify({'success': False, 'message': 'كلمة المرور غير صحيحة'}), 403
+
+        if payment_type == 'supplier':
+            payment = SupplierPayment.query.get(payment_id)
+            if not payment:
+                return jsonify({'success': False, 'message': 'العملية غير موجودة'}), 404
+
+            # 1. استرجاع مديونية المورد (الدفع يقلل المديونية، فالحذف يزيدها)
+            supplier = Supplier.query.get(payment.supplier_id)
+            if supplier:
+                supplier.balance = (supplier.balance or 0) + payment.amount
+
+            # 2. استرجاع المبلغ للخزينة
+            account = MoneyAccount.query.get(payment.account_id)
+            if account:
+                account.balance = (account.balance or 0) + payment.amount
+
+            # 3. تسجيل حركة عكسية
+            db.session.add(FinancialTransaction(
+                type='income',
+                category='إلغاء سداد موردين',
+                amount=payment.amount,
+                description=f"إلغاء عملية سداد للمورد ({supplier.name if supplier else 'غير معروف'}) وتم استرجاع المبلغ",
+                date=cairo_now(),
+                created_by_id=current_user.id if current_user.is_authenticated else None,
+                account_id=account.id if account else None
+            ))
+
+            db.session.delete(payment)
+
+        elif payment_type == 'customer':
+            payment = CustomerPayment.query.get(payment_id)
+            if not payment:
+                return jsonify({'success': False, 'message': 'العملية غير موجودة'}), 404
+
+            # 1. استرجاع مديونية العميل (الدفع يقلل مديونية العميل، فالحذف يزيدها)
+            customer = Customer.query.get(payment.customer_id)
+            if customer:
+                customer.balance = (customer.balance or 0) + payment.amount
+
+            # 2. خصم المبلغ من الخزينة
+            account = MoneyAccount.query.get(payment.account_id)
+            if account:
+                account.balance = (account.balance or 0) - payment.amount
+
+            # 3. تسجيل حركة عكسية
+            db.session.add(FinancialTransaction(
+                type='expense',
+                category='إلغاء تحصيل عملاء',
+                amount=-payment.amount,
+                description=f"إلغاء عملية تحصيل من العميل ({customer.name if customer else 'غير معروف'}) وتم سحب المبلغ",
+                date=cairo_now(),
+                created_by_id=current_user.id if current_user.is_authenticated else None,
+                account_id=account.id if account else None
+            ))
+
+            db.session.delete(payment)
+        else:
+            return jsonify({'success': False, 'message': 'نوع العملية غير مدعوم'}), 400
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم حذف العملية وتحديث الأرصدة بنجاح'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'حدث خطأ: {str(e)}'}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
