@@ -963,11 +963,16 @@ def partners_report():
         })
 
     accounts = MoneyAccount.query.all()
+    
+    start_date_obj = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    prev_end_date_str = (start_date_obj - timedelta(days=1)).strftime('%Y-%m-%d')
+
     return render_template('partners_report.html',
                            report=report_data,
                            grand_total=round_half(grand_total_period),
                            start_date=start_date_str,
                            end_date=end_date_str,
+                           prev_end_date=prev_end_date_str,
                            accounts=accounts,
                            shared_team=shared_team_data,
                            owners=owners_data)

@@ -311,7 +311,7 @@
                                 data-label="الرصيد الكلي المستحق (المعادلة)" data-formula='[
                                     {"label":"صافي فترة النشاط","value":{{ row.period_net_cash }}},
                                     {"label":"الرصيد الافتتاحي","value":{{ row.opening_balance }}},
-                                    {"label":"أرصدة فترات سابقة","value":{{ row.current_balance - row.period_net_cash - row.opening_balance }}}
+                                    {"label":"أرصدة فترات سابقة","value":{{ row.current_balance - row.period_net_cash - row.opening_balance }}, "link":"/partners/report?start_date=2020-01-01&end_date={{ prev_end_date }}"}
                                 ]' data-result="{{ row.current_balance }}">
                                 {{ row.current_balance }} ج.م
                                 <i class="fas fa-calculator small ms-1 text-primary"></i>
@@ -681,9 +681,13 @@
             formula.forEach((item, i) => {
                 const sign = item.value >= 0 ? '+' : '';
                 const colorClass = item.value >= 0 ? 'text-success' : 'text-danger';
+                let labelHtml = item.label;
+                if (item.link) {
+                    labelHtml = `<a href="${item.link}" class="text-primary text-decoration-underline" title="اضغط لعرض التفاصيل">${item.label} <i class="fas fa-external-link-alt small ms-1"></i></a>`;
+                }
                 rows += `
                 <tr>
-                    <td class="text-end fw-bold pe-3">${item.label}</td>
+                    <td class="text-end fw-bold pe-3">${labelHtml}</td>
                     <td class="fs-5 ${colorClass} fw-bold">${sign}${item.value.toFixed(2)}</td>
                 </tr>`;
             });
