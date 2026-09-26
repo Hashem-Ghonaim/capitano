@@ -311,7 +311,7 @@
                                 data-label="الرصيد الكلي المستحق (المعادلة)" data-formula='[
                                     {"label":"صافي فترة النشاط","value":{{ row.period_net_cash }}},
                                     {"label":"الرصيد الافتتاحي","value":{{ row.opening_balance }}},
-                                    {"label":"أرصدة فترات سابقة","value":{{ row.current_balance - row.period_net_cash - row.opening_balance }}{% if start_date != '2020-01-01' %}, "link":"/partners/report?start_date=2020-01-01&end_date={{ prev_end_date }}"{% endif %}}
+                                    {"label":"أرصدة فترات سابقة","value":{{ row.current_balance - row.period_net_cash - row.opening_balance }}}
                                 ]' data-result="{{ row.current_balance }}">
                                 {{ row.current_balance }} ج.م
                                 <i class="fas fa-calculator small ms-1 text-primary"></i>
