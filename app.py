@@ -1623,7 +1623,7 @@ def pos():
 @app.route('/treasury')
 @general_manager_required
 def treasury_dashboard():
-    accounts = MoneyAccount.query.all()
+    accounts = MoneyAccount.query.order_by(MoneyAccount.id).all()
 
     # تجميع الحسابات حسب النوع
     grouped = {
