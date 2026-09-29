@@ -7088,7 +7088,8 @@ def payroll():
 
         # إخفاء الموظف الموقوف إذا لم يكن لديه أي مبيعات، أو حضور، أو حركات مالية في هذا الشهر
         if not getattr(u, 'is_active', True):
-            if current_month_items == 0 and attendance_details['present_days'] == 0 and bonuses == 0 and other_penalties == 0 and advances == 0 and past_returns_deduction == 0:
+            has_attendance = Attendance.query.filter(Attendance.user_id == u.id, func.to_char(Attendance.date, 'YYYY-MM') == month_str).first() is not None
+            if current_month_items == 0 and not has_attendance and bonuses == 0 and other_penalties == 0 and advances == 0 and past_returns_deduction == 0:
                 continue
 
         # تجميع البيانات لإرسالها لملف HTML
@@ -9243,7 +9244,8 @@ def hr_payroll():
 
         # إخفاء الموظف الموقوف إذا لم يكن لديه أي مبيعات، أو حضور، أو حركات مالية في هذا الشهر
         if not getattr(emp, 'is_active', True):
-            if commission == 0 and att_details['present_days'] == 0 and base_bonuses == 0 and base_deductions == 0 and advances == 0:
+            has_attendance = Attendance.query.filter(Attendance.user_id == emp.id, Attendance.date >= month_start, Attendance.date < month_end).first() is not None
+            if commission == 0 and not has_attendance and base_bonuses == 0 and base_deductions == 0 and advances == 0:
                 continue
 
         # فحص هل تم صرف راتب هذا الشهر
