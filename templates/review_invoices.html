@@ -106,10 +106,13 @@
                             <div class="col-md-3">
                                 <span class="d-block small text-muted">الشحن / الدفع</span>
                                 {% if order.is_shipping %}
-                                    <span class="badge bg-info text-dark">شحن</span> ({{ order.paid_upfront }} ج.م محصل)
+                                    <span class="badge bg-info text-dark mb-1">شحن</span>
                                 {% else %}
-                                    <span class="badge bg-success">مباشر</span>
+                                    <span class="badge bg-success mb-1">مباشر</span>
                                 {% endif %}
+                                <div class="small text-secondary fw-bold" style="font-size: 0.85rem;">
+                                    (محصل: {{ order.paid_upfront }} ج.م | باقي: {{ order.amount_due }} ج.م)
+                                </div>
                             </div>
                             <div class="col-md-2 text-md-end text-center mt-3 mt-md-0">
                                 <div class="d-flex flex-column align-items-md-end align-items-center">
