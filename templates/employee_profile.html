@@ -70,8 +70,13 @@
                 التحكم</a>
             <span class="fw-bold">ملف الموظف</span>
             {% if current_user.role == 'general_manager' %}
-            <a href="/employee/delete/{{ emp.id }}" class="btn btn-outline-danger btn-sm"
-                onclick="return confirm('هل أنت متأكد من حذف هذا الموظف؟')"><i class="fas fa-trash"></i> حذف</a>
+            <form action="/employee/toggle_active/{{ emp.id }}" method="POST" style="display:inline;">
+                {% if emp.is_active or emp.is_active is none %}
+                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('هل أنت متأكد من إيقاف هذا الموظف عن العمل (سيتم منعه من الدخول)؟')"><i class="fas fa-ban"></i> إيقاف</button>
+                {% else %}
+                <button type="submit" class="btn btn-outline-success btn-sm" onclick="return confirm('هل أنت متأكد من إعادة تفعيل هذا الموظف؟')"><i class="fas fa-check-circle"></i> تفعيل</button>
+                {% endif %}
+            </form>
             {% endif %}
         </div>
     </nav>

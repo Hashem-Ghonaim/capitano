@@ -213,6 +213,7 @@ class User(db.Model, UserMixin):
     base_salary = db.Column(db.Float, default=0.0)
     job_type = db.Column(db.String(255), default='fixed')
     emp_code = db.Column(db.String(255), unique=True)
+    is_active = db.Column(db.Boolean, default=True)
     permissions = db.Column(db.Text, default="")
     manager = db.relationship('User', remote_side=[id], backref='subordinates')
     manager_id = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -1550,8 +1551,12 @@ def login():
         # البحث عن المستخدم
         user = User.query.filter_by(username=request.form['username']).first()
 
-        # التحقق من الباسورد (تم التصحيح هنا)
+        # التحقق من الباسورد
         if user and check_password_hash(user.password, request.form['password']):
+            if not getattr(user, 'is_active', True):
+                flash('هذا الحساب موقوف، برجاء مراجعة الإدارة')
+                return render_template('login.html')
+            
             login_user(user, remember=True)
             return redirect(url_for('dashboard'))
 
@@ -5064,6 +5069,22 @@ def delete_employee(id):
         flash('تم الحذف', 'success')
     except: db.session.rollback(); flash('خطأ أثناء الحذف', 'danger')
     return redirect(url_for('dashboard'))
+
+@app.route('/employee/toggle_active/<int:id>', methods=['POST'])
+@general_manager_required
+def toggle_employee_active(id):
+    user = User.query.get_or_404(id)
+    if user.id == current_user.id: 
+        flash('لا يمكن إيقاف حسابك الشخصي', 'danger')
+        return redirect(request.referrer)
+    
+    # Toggle active status
+    user.is_active = not getattr(user, 'is_active', True)
+    db.session.commit()
+    
+    status_text = 'تفعيل' if user.is_active else 'إيقاف'
+    flash(f'تم {status_text} الموظف بنجاح', 'success')
+    return redirect(request.referrer or url_for('dashboard'))
 
 @app.route('/employee/<int:id>', methods=['GET', 'POST'])
 @login_required
