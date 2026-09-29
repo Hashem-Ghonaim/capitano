@@ -1,0 +1,18 @@
+User: دينا حمدي
+Columns: {"id": 33, "fullname": "دينا حمدي", "username": "Dina_hamdy", "role": "manager", "phone": "01042950017", "base_salary": 0.0, "job_type": "commission_only", "emp_code": "EMP308", "permissions": "view_pos,view_invoices,view_shipping,view_customers,manage_customers", "manager_id": 1, "shift_start": "09:00", "shift_end": "17:00", "working_hours": 8.0, "work_from_home": false, "commission_value": 0.0, "commission_rules": null, "salary_method": "direct_manager"}
+
+Transactions before 2026-09-01 for دينا حمدي:
+  - Date: 2026-08-31 17:38:41.737723 | Type: personal_expense_share | Amount: -500.0 | Desc: مصروف شخصي: اعلان
+
+==================================
+User: دينا رضا
+Columns: {"id": 32, "fullname": "دينا رضا", "username": "Dina_reda", "role": "manager", "phone": "01024950013", "base_salary": 0.0, "job_type": "commission_only", "emp_code": "EMP157", "permissions": "view_pos,view_invoices,view_shipping,view_customers,manage_customers", "manager_id": 1, "shift_start": "09:00", "shift_end": "17:00", "working_hours": 8.0, "work_from_home": false, "commission_value": 0.0, "commission_rules": null, "salary_method": "direct_manager"}
+
+Transactions before 2026-09-01 for دينا رضا:
+  - Date: 2026-08-31 00:59:58.271819 | Type: personal_expense_share | Amount: -500.0 | Desc: مصروف شخصي: اعلان
+  - Date: 2026-08-31 15:35:13.973470 | Type: discount_deduction | Amount: -1000.0 | Desc: خصم ممنوح للعميل - فاتورة #3552
+  - Date: 2026-08-31 17:24:41.468256 | Type: discount_deduction | Amount: -40.0 | Desc: خصم ممنوح للعميل - فاتورة #3555
+  - Date: 2026-08-31 15:35:13.914336 | Type: commission_gross | Amount: 1400.0 | Desc: عمولة (100 قطعة) - فاتورة مبيعات (دينا رضا)
+  - Date: 2026-08-31 17:12:00 | Type: commission_gross | Amount: 2688.0 | Desc: عمولة (192 قطعة) - فاتورة مبيعات (دينا رضا)
+
+==================================

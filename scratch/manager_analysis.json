@@ -1,0 +1,110 @@
+{
+  "ايهاب حبلص": {
+    "total_balance": 19391.175714285717,
+    "types_sum": {
+      "discount_deduction": -72385.0,
+      "partner_bonus": 0.0,
+      "commission_gross": 374416.0,
+      "opening_balance": 21995.0,
+      "withdrawal": -66185.0,
+      "salary_expense": -26016.26714285714,
+      "personal_expense_share": -186532.0,
+      "expense_share": -1463.8571428571431,
+      "personal_salary_expense": -500.0,
+      "correction": -23937.699999999986
+    },
+    "month_sum": {
+      "2026-02": 24637.0,
+      "2026-03": 25971.0,
+      "2026-04": 50477.29,
+      "2026-05": 37935.0,
+      "2026-06": 17615.0,
+      "2026-07": -21971.2,
+      "2026-08": -15306.900000000001,
+      "2026-09": -99966.01428571428
+    }
+  },
+  "السيد الوكيل": {
+    "total_balance": -86173.82428571428,
+    "types_sum": {
+      "discount_deduction": -18275.0,
+      "commission_gross": 100156.0,
+      "partner_deduction": 0.0,
+      "opening_balance": -39957.0,
+      "withdrawal": -31825.0,
+      "salary_expense": -26016.26714285714,
+      "personal_expense_share": -44855.0,
+      "expense_share": -1463.8571428571431,
+      "correction": -23937.699999999986
+    },
+    "month_sum": {
+      "2026-02": -36781.0,
+      "2026-03": -914.0,
+      "2026-04": 15564.29,
+      "2026-08": -13816.9,
+      "2026-05": -12556.0,
+      "2026-06": 8874.0,
+      "2026-07": -14589.2,
+      "2026-09": -31955.01428571428
+    }
+  },
+  "سميه حمدي": {
+    "total_balance": -31898.121428571427,
+    "types_sum": {
+      "discount_deduction": -118985.0,
+      "commission_gross": 449148.0,
+      "sub_commission": -22976.0,
+      "partner_bonus": 0.0,
+      "opening_balance": 317416.0,
+      "personal_salary_expense": -49556.94,
+      "withdrawal": -269200.0,
+      "salary_expense": -26016.26714285714,
+      "personal_expense_share": -309124.0,
+      "expense_share": -1463.8571428571431,
+      "partner_deduction": -200.0,
+      "commission_correction": 12583.0,
+      "correction": -13523.057142857146
+    },
+    "month_sum": {
+      "2026-02": 333748.0,
+      "2026-03": -79392.0,
+      "2026-04": -105907.65,
+      "2026-05": -66070.0,
+      "2026-06": 16498.0,
+      "2026-09": -50217.87142857142,
+      "2026-07": -36891.2,
+      "2026-08": -43665.399999999994
+    }
+  },
+  "دينا حمدي": {
+    "total_balance": -20341.78571428571,
+    "types_sum": {
+      "personal_expense_share": -2500.0,
+      "discount_deduction": -870.0,
+      "commission_gross": 13678.0,
+      "expense_share": -442.857142857143,
+      "salary_expense": -142.857142857143,
+      "correction": -30064.071428571424
+    },
+    "month_sum": {
+      "2026-08": -500.0,
+      "2026-09": -19841.785714285714
+    }
+  },
+  "دينا رضا": {
+    "total_balance": 83306.21428571429,
+    "types_sum": {
+      "commission_gross": 23954.0,
+      "personal_expense_share": -6217.0,
+      "discount_deduction": -3781.0,
+      "opening_balance": 100000.0,
+      "expense_share": -442.857142857143,
+      "salary_expense": -142.857142857143,
+      "correction": -30064.071428571424
+    },
+    "month_sum": {
+      "2026-09": 80758.21428571435,
+      "2026-08": 2548.0
+    }
+  }
+}

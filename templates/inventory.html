@@ -147,6 +147,7 @@
                                 <th>سعر البيع</th>
                                 {% if current_user.role != 'manager' %}
                                 <th>هامش الربح</th>
+                                <th>عمولة الشريك</th>
                                 {% endif %}
                                 <th>المخزون</th>
                                 <th>إجراءات</th>
@@ -159,6 +160,7 @@
                                 <td id="totalSell" class="text-success">0.00</td>
                                 {% if current_user.role != 'manager' %}
                                 <td id="totalProfit" class="text-primary">0.00</td>
+                                <td></td>
                                 {% endif %}
                                 <td id="totalStock" class="text-dark">0</td>
                                 <td></td>
@@ -205,6 +207,9 @@
                                 {% if current_user.role != 'manager' %}
                                 <td class="fw-bold text-primary" data-id="{{ p.id }}" data-field="profit">
                                     {{ "%.2f"|format(p.sell_price - p.cost_price) }}
+                                </td>
+                                <td class="editable fw-bold text-warning" data-id="{{ p.id }}" data-field="commission">
+                                    {{ p.model.partner_commission }}
                                 </td>
                                 {% endif %}
 

@@ -254,6 +254,7 @@ class ProductModel(db.Model):
     name = db.Column(db.String(100), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
     image = db.Column(db.String(150), default='default.png')
+    partner_commission = db.Column(db.Float, default=14.0)
     category = db.relationship('Category', backref='products')
     variants = db.relationship('ProductVariant', backref='model', lazy=True, cascade="all, delete-orphan")
 class EmployeeExcuse(db.Model):
@@ -412,6 +413,7 @@ class SaleItem(db.Model):
     quantity = db.Column(db.Integer)
     unit_price = db.Column(db.Float)
     total_price = db.Column(db.Float)
+    partner_commission = db.Column(db.Float, default=14.0)
     variant = db.relationship('ProductVariant')
 class FinancialTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -458,6 +460,7 @@ class ReturnInvoice(db.Model):
     missing_items_desc = db.Column(db.String(255))
     total_deduction = db.Column(db.Float, default=0.0)
     total_qty = db.Column(db.Integer, default=0) # كمية المرتجعات
+    returned_partner_commission = db.Column(db.Float, default=0.0)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     notes = db.Column(db.Text)
     order = db.relationship('SaleOrder', backref=db.backref('return_invoices', lazy=True))
@@ -2015,26 +2018,27 @@ def profile():
             global_shipping_extra = get_transaction_sum('shipping_extra_commission')
 
         else:
-            # --- حسابات المديرين العاديين (بناءً على 14 جنيه ثابتة) ---
+            # --- حسابات المديرين العاديين (بناءً على العمولة المتغيرة لكل قطعة) ---
             
-            # عدد القطع الصافي — محسوب من الفواتير مباشرة لضمان التطابق التام
             mgr_team_ids = [u.id] + [t.id for t in User.query.filter(User.manager_id == u.id).all()]
-            gross_team_items = db.session.query(func.sum(SaleItem.quantity))\
-                .join(SaleOrder)\
-                .filter(SaleOrder.is_proforma == False,
-                        SaleOrder.date >= month_start,
-                        SaleOrder.date < month_end,
-                        SaleOrder.user_id.in_(mgr_team_ids)).scalar() or 0
-            returned_team_items = db.session.query(func.sum(ReturnInvoice.total_qty))\
-                .join(SaleOrder)\
-                .filter(SaleOrder.user_id.in_(mgr_team_ids),
-                        ReturnInvoice.date >= month_start,
-                        ReturnInvoice.date < month_end).scalar() or 0
-            global_team_items = max(0, gross_team_items - returned_team_items)
+            
+            gross_commission = db.session.query(
+                func.sum(SaleItem.quantity * func.coalesce(SaleItem.partner_commission, 14.0))
+            ).join(SaleOrder)\
+             .filter(SaleOrder.is_proforma == False,
+                     SaleOrder.date >= month_start,
+                     SaleOrder.date < month_end,
+                     SaleOrder.user_id.in_(mgr_team_ids)).scalar() or 0.0
 
-            # العمولة الكلية = عدد القطع الصافي * 14
-            global_gross = global_team_items * 14.0
+            returned_commission = db.session.query(
+                func.sum(func.coalesce(ReturnInvoice.returned_partner_commission, ReturnInvoice.total_qty * 14.0))
+            ).join(SaleOrder)\
+             .filter(SaleOrder.user_id.in_(mgr_team_ids),
+                     ReturnInvoice.date >= month_start,
+                     ReturnInvoice.date < month_end).scalar() or 0.0
 
+            # العمولة الكلية = العمولة الإجمالية - العمولة المرتجعة
+            global_gross = max(0.0, gross_commission - returned_commission)
             # مصاريف تخص فريق المدير ده فقط
             global_girls_comm = get_transaction_sum('sub_commission', u.id)
             global_discounts = get_transaction_sum('discount_deduction', u.id)
@@ -3108,16 +3112,19 @@ def update_monthly_commissions(sales_rep_id, ref_date):
             net_qty = max(0, gross_qty - returned_qty)
             
             if net_qty <= 0: continue
+            # ج) عمولة الشريك (Gross) - بحساب كل قطعة وعمولتها
+            gross_commission = sum(item.quantity * (item.partner_commission if item.partner_commission is not None else 14.0) for item in order.items)
+            returned_commission = sum((ret.returned_partner_commission if ret.returned_partner_commission is not None else ret.total_qty * 14.0) for ret in order.return_invoices) if order.return_invoices else 0.0
+            net_commission = gross_commission - returned_commission
 
-            # ج) عمولة الشريك (Gross) - 14 جنيه ثابتة
             if partner.username not in ['Abo_Eyad', 'Abo_malek']:
                 db.session.add(PartnerTransaction(
                     partner_id=partner.id,
                     order_id=order.id,
                     type='commission_gross',
-                    amount=net_qty * 14.0,
+                    amount=net_commission,
                     date=order.date,
-                    description=f"عمولة ({net_qty} قطعة) - فاتورة مبيعات ({sales_rep.fullname})"
+                    description=f"عمولة مبيعات ({net_qty} قطعة) - فاتورة ({sales_rep.fullname})"
                 ))
 
             # د) عمولة الموظفة (تتخصم من الشريك)
@@ -3703,6 +3710,7 @@ def process_order():
     db.session.flush() # للحصول على ID الفاتورة
 
     total_amount = 0
+    total_partner_commission = 0.0
 
     # === [و] إضافة المنتجات وحساب الأسعار ===
     for item in cart:
@@ -3710,6 +3718,11 @@ def process_order():
         if qty <= 0: continue
 
         variant = ProductVariant.query.get(item['id'])
+        
+        # Capture current product commission
+        item_commission = variant.model.partner_commission
+        if item_commission is None: item_commission = 14.0
+        total_partner_commission += (item_commission * qty)
 
         # منطق التسعير (مكتب vs عادي)
         if is_office and (current_user.role == 'general_manager' or current_user.username == 'Abo_malek'):
@@ -3726,7 +3739,8 @@ def process_order():
             variant_id=item['id'],
             quantity=qty,
             unit_price=unit_price,
-            total_price=item_total
+            total_price=item_total,
+            partner_commission=item_commission
         ))
 
         # خصم المخزون (لو مش عرض سعر)
@@ -3846,7 +3860,8 @@ def process_order():
                 partner_id=partner.id,
                 order_id=order.id,
                 type='commission_gross',
-                amount=total_items_qty * 14.0, # العمولة الثابتة للشريك
+                amount=total_partner_commission, # العمولة المتغيرة المجمعة للشريك
+
                 date=order.date,
                 description=f"عمولة ({total_items_qty} قطعة) - فاتورة #{order.id}"
             ))
@@ -5657,6 +5672,7 @@ def new_purchase():
         qtys = request.form.getlist('qty[]')
         barcodes = request.form.getlist('barcode[]')
         categories = request.form.getlist('category[]')
+        commissions = request.form.getlist('commission[]')
         images = request.files.getlist('image[]')
 
         if not names:
@@ -5707,6 +5723,9 @@ def new_purchase():
 
             p_category = categories[i].strip() if i < len(categories) else "عام"
             if not p_category: p_category = "عام"
+            
+            try: comm = float(commissions[i]) if i < len(commissions) and commissions[i].strip() else 14.0
+            except: comm = 14.0
 
             # معالجة الصورة المرفوعة
             image_filename = 'default_product.png'
@@ -5743,12 +5762,16 @@ def new_purchase():
                 if model:
                     if model.variants:
                         variant = model.variants[0]
+                    
+                    # Update commission for existing product if changed in the invoice
+                    model.partner_commission = comm
+
                     # تحديث الصورة لو تم رفع صورة جديدة لمنتج موجود
                     if image_filename != 'default_product.png':
                         model.image = image_filename
                 else:
                     # ج) إنشاء منتج جديد تماماً (موديل + فارينت)
-                    model = ProductModel(name=p_name, category_id=cat.id, image=image_filename)
+                    model = ProductModel(name=p_name, category_id=cat.id, image=image_filename, partner_commission=comm)
                     db.session.add(model)
                     db.session.flush()
 
@@ -6481,8 +6504,26 @@ def reports_hub():
                      cast(SaleOrder.date, Date) >= cast(start_date_str, Date),
                      cast(SaleOrder.date, Date) <= cast(end_date_str, Date)).scalar() or 0.0
 
-            # العمولات (14 جنيه × عدد القطع)
-            commissions = items_sold * 14
+            # العمولات (بحساب العمولة المتغيرة لكل قطعة من تفاصيل الفاتورة)
+            total_comm_gross = db.session.query(
+                func.sum(SaleItem.quantity * func.coalesce(SaleItem.partner_commission, 14.0))
+            ).join(SaleOrder)\
+             .filter(SaleOrder.is_proforma == False,
+                     SaleOrder.user_id.in_(team_ids),
+                     cast(SaleOrder.date, Date) >= cast(start_date_str, Date),
+                     cast(SaleOrder.date, Date) <= cast(end_date_str, Date)).scalar() or 0.0
+            
+            # العمولات المرتجعة (بحساب العمولة اللي اتسجلت ساعة المرتجع)
+            total_comm_returned = db.session.query(
+                func.sum(func.coalesce(ReturnInvoice.returned_partner_commission, 
+                    ReturnInvoice.total_qty * 14.0)) # للفواتير القديمة اللي ملهاش returned_partner_commission
+            ).join(SaleOrder)\
+             .filter(SaleOrder.is_proforma == False,
+                     SaleOrder.user_id.in_(team_ids),
+                     cast(SaleOrder.date, Date) >= cast(start_date_str, Date),
+                     cast(SaleOrder.date, Date) <= cast(end_date_str, Date)).scalar() or 0.0
+
+            commissions = total_comm_gross - total_comm_returned
 
             # صافي ربح الشركة من هذا المدير
             net_profit = company_profit - commissions
@@ -7075,6 +7116,7 @@ def add_return():
             total_qty_returned = 0
             total_items_value = 0.0
             total_profit_to_deduct = 0.0
+            total_commission_to_deduct = 0.0
             returned_items_for_stock = []
 
             for item in order.items:
@@ -7104,6 +7146,9 @@ def add_return():
                     
                     if item.variant:
                         total_profit_to_deduct += (returned_qty * (item.unit_price - item.variant.cost_price))
+                        item_comm = item.partner_commission if item.partner_commission is not None else 14.0
+                        total_commission_to_deduct += (returned_qty * item_comm)
+                        
                         item.variant.stock += returned_qty
                         # نجمع بيانات حركات المخزون عشان نضيفها بعد إنشاء المرتجع
                         returned_items_for_stock.append((item.variant.id, returned_qty))
@@ -7120,7 +7165,8 @@ def add_return():
                 order_id=order.id, shipping_loss=shipping_loss,
                 missing_items_cost=missing_cost, missing_items_desc=missing_desc,
                 total_deduction=total_deduction, created_by=current_user.id, notes=notes,
-                total_qty=total_qty_returned # تخزين الكمية المرتجعة
+                total_qty=total_qty_returned, # تخزين الكمية المرتجعة
+                returned_partner_commission=total_commission_to_deduct # حفظ إجمالي العمولة اللي هتتخصم من المدير
             )
             db.session.add(ret_inv)
             db.session.flush()  # للحصول على ID المرتجع
@@ -7183,11 +7229,11 @@ def add_return():
                         description=f"خصم هامش ربح قطع مرتجعة ({total_qty_returned} قطعة) - فاتورة #{order.id}"
                     ))
                 else:
-                    # للمديرين العاديين: خصم 14 جنيه ثابتة
+                    # للمديرين العاديين: خصم العمولة المتغيرة للقطع المرتجعة
                     db.session.add(PartnerTransaction(
                         partner_id=partner.id, order_id=order.id, type='commission_gross',
-                        amount=-(total_qty_returned * 14.0),
-                        description=f"خصم ربح 14ج لقطع مرتجعة ({total_qty_returned} قطعة) - فاتورة #{order.id}"
+                        amount=-total_commission_to_deduct,
+                        description=f"خصم عمولة مبيعات عن قطع مرتجعة ({total_qty_returned} قطعة) - فاتورة #{order.id}"
                     ))
                 # ب) خسائر الشحن والتوالف يتحملها العميل فقط (مخصومة من قيمة الرد أعلاه)
                 # لا يتم خصمها من الشريك/المدير لتجنب الخصم المزدوج
@@ -7335,6 +7381,8 @@ def quick_update_product():
             variant.cost_price = float(value)
         elif field == 'sell':
             variant.sell_price = float(value)
+        elif field == 'commission':
+            variant.model.partner_commission = float(value)
         elif field == 'stock':
             old_stock = variant.stock
             new_stock = int(value)

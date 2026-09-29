@@ -75,12 +75,13 @@
             <table class="table table-bordered text-center align-middle" id="itemsTable">
                 <thead class="table-dark">
                     <tr>
-                        <th width="25%">اسم الصنف</th>
+                        <th width="20%">اسم الصنف</th>
                         <th width="15%">التصنيف</th>
                         <th width="10%">باركود</th>
                         <th width="10%">التكلفة</th>
                         <th width="10%">البيع</th>
                         <th width="10%">الكمية</th>
+                        <th width="10%">عمولة الشريك</th>
                         <th width="10%" class="no-print">صورة</th>
                         <th width="5%" class="no-print"></th>
                     </tr>
@@ -240,6 +241,7 @@
             <td><input type="number" step="0.5" name="cost[]" class="table-input cost-input" placeholder="0.0" oninput="calculateTotals()"></td>
             <td><input type="number" step="0.5" name="sell[]" class="table-input sell-input" placeholder="0.0"></td>
             <td><input type="number" name="qty[]" class="table-input qty-input" placeholder="0" required style="background:#e8f0fe; font-weight:bold;" oninput="calculateTotals()"></td>
+            <td><input type="number" step="0.5" name="commission[]" class="table-input commission-input" value="14" placeholder="14" style="background:#fff3cd; font-weight:bold;"></td>
             <td class="no-print"><input type="file" name="image[]" class="form-control form-control-sm"></td>
             <td class="no-print"><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">x</button></td>
         </tr>`;
