@@ -4104,7 +4104,7 @@ def print_invoice(id):
     # الحصول على كل الموظفين لاستخدامهم في النافذة المنبثقة لتغيير المُعبئ
     all_employees = User.query.all()
     # الحصول على كل المنتجات للبحث في نافذة إضافة صنف
-    all_variants = ProductVariant.query.filter(ProductVariant.stock > 0).all()
+    all_variants = ProductVariant.query.filter(ProductVariant.stock > 0).order_by(ProductVariant.id.asc()).all()
     
     # جلب تفاصيل دفع الإيصال (الخزائن اللي استلمت الفلوس) - تشمل الدفعات الأولية والإضافية
     transactions = FinancialTransaction.query.filter(
@@ -4401,7 +4401,7 @@ def public_catalog():
         products = ProductVariant.query.join(ProductModel).filter(
             ProductModel.category_id == cat.id,
             ProductVariant.stock > 0
-        ).all()
+        ).order_by(ProductVariant.id.asc()).all()
 
         # إذا كان التصنيف يحتوي على منتجات متاحة، نضيفه للقائمة
         if products:
@@ -4504,7 +4504,7 @@ def edit_proforma(id):
 
     return render_template('pos.html',
                            categories=Category.query.all(),
-                           products=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all(),
+                           products=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).order_by(ProductVariant.id.asc()).all(),
                            customers=customers,
                            shipping_companies=ShippingCompany.query.all(),
                            money_accounts=MoneyAccount.query.all(),
@@ -5795,8 +5795,8 @@ def new_purchase():
                            suppliers=Supplier.query.all(),
                            categories=Category.query.all(),
                            categories_data=json.dumps(categories_data),
-                           product_suggestions=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all(),
-                           products=ProductVariant.query.all())
+                           product_suggestions=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).order_by(ProductVariant.id.asc()).all(),
+                           products=ProductVariant.query.order_by(ProductVariant.id.asc()).all())
     # =========================================================
 @app.route('/purchases/edit/<int:id>', methods=['GET', 'POST'])
 @permission_required('manage_inventory')
@@ -6516,7 +6516,7 @@ def reports_hub():
 
     elif report_type == 'product_tracking':
         # جلب كل المنتجات للبحث
-        all_variants = ProductVariant.query.join(ProductModel).order_by(ProductModel.name).all()
+        all_variants = ProductVariant.query.join(ProductModel).order_by(ProductVariant.id.asc()).all()
         data['all_variants'] = [{
             'id': v.id,
             'name': v.model.name,
@@ -8676,7 +8676,7 @@ def purchase_return():
     # في حالة الـ GET (عرض الصفحة)
     return render_template('new_purchase_return.html',
                            suppliers=Supplier.query.all(),
-                           product_suggestions=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).all())
+                           product_suggestions=ProductVariant.query.filter(or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)).order_by(ProductVariant.id.asc()).all())
 @app.route('/fix/correct_settled_invoices')
 @login_required
 def correct_settled_invoices():
@@ -8707,7 +8707,7 @@ def audit_system_gap():
         # الفكرة: هنقارن (أعلى سعر اشترينا بيه الصنف) مع (سعر التكلفة الحالي المسجل)
         # لو السعر الحالي أقل من سعر الشراء، ده بيعمل عجز في قيمة المخزن مقارنة بدين المورد
 
-        products = ProductVariant.query.filter(ProductVariant.stock > 0).all()
+        products = ProductVariant.query.filter(ProductVariant.stock > 0).order_by(ProductVariant.id.asc()).all()
 
         report.append("<h3>1. تحليل فروقات أسعار التكلفة (Valuation Gap)</h3>")
         report.append("<table border='1' style='width:100%; border-collapse:collapse; text-align:center;'>")
