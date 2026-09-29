@@ -339,6 +339,21 @@
         }
     </script>
 
+<script>
+    document.addEventListener("DOMContentLoaded", function(event) { 
+        var scrollKey = 'scrollpos_' + window.location.pathname;
+        var scrollpos = sessionStorage.getItem(scrollKey);
+        if (scrollpos) {
+            window.scrollTo(0, scrollpos);
+            sessionStorage.removeItem(scrollKey);
+        }
+    });
+
+    window.addEventListener("beforeunload", function(e) {
+        var scrollKey = 'scrollpos_' + window.location.pathname;
+        sessionStorage.setItem(scrollKey, window.scrollY);
+    });
+</script>
 </body>
 
 </html>

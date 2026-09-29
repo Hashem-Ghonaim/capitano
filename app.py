@@ -1613,7 +1613,7 @@ def pos():
                            products=ProductVariant.query.join(ProductModel).join(Category).filter(
                                Category.season == season,
                                or_(ProductVariant.is_hidden == False, ProductVariant.is_hidden == None)
-                           ).all(),
+                           ).order_by(ProductVariant.id.asc()).all(),
                            current_season=season,
                            customers=customers,
                            shipping_companies=ShippingCompany.query.all(),
@@ -3095,8 +3095,9 @@ def update_monthly_commissions(sales_rep_id, ref_date):
         total_month_comm = 0.0
 
         for order in monthly_orders:
-            # أ) تنظيف القديم
+            # أ) تنظيف القديم — نفلتر بـ partner_id عشان منمسحش حركات مديرين تانيين
             PartnerTransaction.query.filter(
+                PartnerTransaction.partner_id == partner.id,
                 PartnerTransaction.order_id == order.id,
                 PartnerTransaction.type.in_(['commission_gross', 'sub_commission'])
             ).delete(synchronize_session=False)
@@ -4666,6 +4667,7 @@ def revert_to_proforma(order_id):
             FinancialTransaction.description.like(f'%فاتورة #{order_id}%')
         ).all()
 
+        cash_paid_to_safe = 0.0
         for tx in financial_txs:
             if tx.description and re.search(rf'فاتورة #{order_id}(?!\d)', tx.description):
                 if tx.type in ('income', 'expense'):
@@ -4673,17 +4675,18 @@ def revert_to_proforma(order_id):
                     if account:
                         if tx.type == 'income':
                             account.balance = round_half(account.balance - tx.amount)
+                            cash_paid_to_safe += tx.amount
                         elif tx.type == 'expense':
                             account.balance = round_half(account.balance + tx.amount)
+                            cash_paid_to_safe -= tx.amount
                 db.session.delete(tx)
 
-        # 2. إرجاع رصيد العميل بالكامل (final_total = المديونية الأصلية + أي دفعات إضافية أو من الرصيد)
+        # 2. إرجاع رصيد العميل بالكامل 
+        # (نطرح final_total اللي اتضاف لمديونيته، ونرد له الفلوس الكاش اللي دفعها لأننا سحبناها من الخزنة)
         if order.customer_id:
             customer = Customer.query.get(order.customer_id)
             if customer:
-                # نخصم final_total لأنها المبلغ الكلي اللي اتضاف لرصيد العميل
-                # (سواء amount_due أو دفعات إضافية اللي بتنقص الرصيد)
-                customer.balance = round_half((customer.balance or 0) - (order.final_total or 0))
+                customer.balance = round_half((customer.balance or 0) - (order.final_total or 0) + cash_paid_to_safe)
 
         # 3. إرجاع المخزون
         for item in order.items:
