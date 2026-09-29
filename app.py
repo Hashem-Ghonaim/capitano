@@ -7086,6 +7086,11 @@ def payroll():
             HRTransaction.note.like(f"%{month_str}%")
         ).first() is not None
 
+        # إخفاء الموظف الموقوف إذا لم يكن لديه أي مبيعات، أو حضور، أو حركات مالية في هذا الشهر
+        if not getattr(u, 'is_active', True):
+            if current_month_items == 0 and attendance_details['present_days'] == 0 and bonuses == 0 and other_penalties == 0 and advances == 0 and past_returns_deduction == 0:
+                continue
+
         # تجميع البيانات لإرسالها لملف HTML
         employees_data.append({
             'id': u.id,
@@ -9228,13 +9233,18 @@ def hr_payroll():
         # حساب خصومات الغياب ومكافآت الإضافي
         att_settings = AttendanceSettings.query.first() or AttendanceSettings()
         daily_rate = (emp.base_salary or 0) / 30
-        attendance_deduction, _, overtime_bonus = calculate_attendance_deduction(emp, month_label, att_settings, daily_rate)
+        attendance_deduction, att_details, overtime_bonus = calculate_attendance_deduction(emp, month_label, att_settings, daily_rate)
         
         deductions = round_half(base_deductions + attendance_deduction)
         bonuses = round_half(base_bonuses + overtime_bonus)
         advances = round_half(advances)
 
         net_salary = round_half((emp.base_salary or 0) + commission + bonuses - deductions - advances)
+
+        # إخفاء الموظف الموقوف إذا لم يكن لديه أي مبيعات، أو حضور، أو حركات مالية في هذا الشهر
+        if not getattr(emp, 'is_active', True):
+            if commission == 0 and att_details['present_days'] == 0 and base_bonuses == 0 and base_deductions == 0 and advances == 0:
+                continue
 
         # فحص هل تم صرف راتب هذا الشهر
         already_paid = HRTransaction.query.filter(
