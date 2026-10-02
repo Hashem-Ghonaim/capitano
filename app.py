@@ -4886,9 +4886,11 @@ def invoices():
     end_date = request.args.get('end_date')
 
     if start_date:
-        query = query.filter(SaleOrder.date >= f"{start_date} 00:00:00")
+        sd = datetime.strptime(f"{start_date} 00:00:00", "%Y-%m-%d %H:%M:%S")
+        query = query.filter(SaleOrder.date >= sd)
     if end_date:
-        query = query.filter(SaleOrder.date <= f"{end_date} 23:59:59")
+        ed = datetime.strptime(f"{end_date} 23:59:59", "%Y-%m-%d %H:%M:%S")
+        query = query.filter(SaleOrder.date <= ed)
 
     if show_proforma:
         # عرض عروض الأسعار فقط
