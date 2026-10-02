@@ -2034,7 +2034,7 @@ def profile():
                         SaleOrder.date >= month_start,
                         SaleOrder.date < month_end,
                         SaleOrder.user_id.in_(mgr_team_ids)).scalar() or 0
-gross_commission = db.session.query(
+            gross_commission = db.session.query(
                 func.sum(SaleItem.quantity * func.coalesce(SaleItem.partner_commission, 14.0))
             ).join(SaleOrder)\
              .filter(SaleOrder.is_proforma == False,
