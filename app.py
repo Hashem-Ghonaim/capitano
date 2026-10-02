@@ -2027,7 +2027,14 @@ def profile():
             
             mgr_team_ids = [u.id] + [t.id for t in User.query.filter(User.manager_id == u.id).all()]
             
-            gross_commission = db.session.query(
+            
+            global_team_items = db.session.query(func.sum(SaleItem.quantity))\
+                .join(SaleOrder)\
+                .filter(SaleOrder.is_proforma == False,
+                        SaleOrder.date >= month_start,
+                        SaleOrder.date < month_end,
+                        SaleOrder.user_id.in_(mgr_team_ids)).scalar() or 0
+gross_commission = db.session.query(
                 func.sum(SaleItem.quantity * func.coalesce(SaleItem.partner_commission, 14.0))
             ).join(SaleOrder)\
              .filter(SaleOrder.is_proforma == False,
