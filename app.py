@@ -7330,7 +7330,7 @@ def get_order_details(id):
         if remaining_qty > 0:
             items.append({
                 'id': item.id,
-                'name': item.variant.model.name,
+                'name': f"{item.variant.model.name} (كود: {item.variant.barcode or 'بدون'})",
                 'qty': remaining_qty, # نرسل المتبقي واجهة المستخدم عشان متسمحش بأكتر منه
                 'price': item.unit_price
             })
