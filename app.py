@@ -7295,9 +7295,13 @@ def add_return():
             return redirect(request.url)
 
     # GET: عرض الصفحة
-    orders = SaleOrder.query.filter(
+    # جلب آخر 1000 فاتورة فقط مع استخدام joinedload لمنع بطء الـ N+1 queries
+    orders = SaleOrder.query.options(
+        db.joinedload(SaleOrder.items),
+        db.joinedload(SaleOrder.return_invoices)
+    ).filter(
         SaleOrder.is_proforma == False
-    ).order_by(SaleOrder.id.desc()).all()
+    ).order_by(SaleOrder.id.desc()).limit(1000).all()
     
     # فلترة الفواتير اللي كمياتها المرتجعة أقل من كميتها الأصلية (عشان تظهر في القايمة)
     valid_orders = []
