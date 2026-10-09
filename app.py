@@ -5260,6 +5260,7 @@ def employee_profile(id):
     gross_commission = calculate_user_commission(emp, gross_items, gross_items)
     return_commission_value = calculate_user_commission(emp, returned_items, gross_items)
     commission = round_half(gross_commission)
+    net_items = gross_items - returned_items
     
     hr_trans = HRTransaction.query.filter(HRTransaction.user_id == emp.id, HRTransaction.date >= month_start, HRTransaction.date < month_end).all()
 
