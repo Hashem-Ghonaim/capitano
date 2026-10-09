@@ -7091,7 +7091,7 @@ def payroll():
         bonuses = sum(t.amount for t in hr_trans if t.type == 'bonus') + overtime_bonus
         advances = sum(t.amount for t in hr_trans if t.type == 'advance')
         other_penalties = sum(t.amount for t in hr_trans if t.type in ['penalty', 'deduction'])
-        manual_returns_deduction = sum(abs(t.amount) for t in hr if t.type == 'return_reversal')
+        manual_returns_deduction = sum(abs(t.amount) for t in hr_trans if t.type == 'return_reversal')
         past_returns_deduction = manual_returns_deduction
 
         # 5. المعادلة النهائية الشاملة للاستحقاقات والاستقطاعات
