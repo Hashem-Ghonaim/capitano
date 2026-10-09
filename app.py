@@ -7092,7 +7092,7 @@ def payroll():
         advances = sum(t.amount for t in hr_trans if t.type == 'advance')
         other_penalties = sum(t.amount for t in hr_trans if t.type in ['penalty', 'deduction'])
         manual_returns_deduction = sum(abs(t.amount) for t in hr_trans if t.type == 'return_reversal')
-        past_returns_deduction = manual_returns_deduction
+        past_returns_deduction = manual_returns_deduction + return_commission_value
 
         # 5. المعادلة النهائية الشاملة للاستحقاقات والاستقطاعات
         total_income = (u.base_salary or 0) + commission + bonuses
