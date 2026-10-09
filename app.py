@@ -8496,7 +8496,7 @@ def restore_shipping_orders():
 @login_required  # متاح لأي شخص مسجل دخول
 def print_inventory_catalog():
     # استقبال الأقسام من الرابط كقائمة
-    cat_ids = request.args.getlist('category_id')
+    cat_ids_str = request.args.getlist('category_id')
 
     # الاستعلام الأساسي: ترتيب بالكود + (شرط المخزون أكبر من صفر)
     query = ProductVariant.query.filter(ProductVariant.stock > 0).join(ProductModel).order_by(ProductVariant.id)
@@ -8504,13 +8504,14 @@ def print_inventory_catalog():
     title_text = "كل المنتجات المتوفرة"
 
     # تطبيق فلتر التصنيف لو اختار أكتر من قسم ومفيش "all"
-    if cat_ids and 'all' not in cat_ids:
-        query = query.filter(ProductModel.category_id.in_(cat_ids))
-        
-        # تجميع أسماء الأقسام للعنوان
-        categories = Category.query.filter(Category.id.in_(cat_ids)).all()
-        if categories:
-            title_text = " - ".join([c.name for c in categories])
+    if cat_ids_str and 'all' not in cat_ids_str:
+        cat_ids_int = [int(c) for c in cat_ids_str if c.isdigit()]
+        if cat_ids_int:
+            query = query.filter(ProductModel.category_id.in_(cat_ids_int))
+            # تجميع أسماء الأقسام للعنوان
+            categories = Category.query.filter(Category.id.in_(cat_ids_int)).all()
+            if categories:
+                title_text = " - ".join([c.name for c in categories])
 
     products = query.all()
 
