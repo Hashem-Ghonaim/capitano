@@ -114,37 +114,44 @@
         </div>
         <div class="row g-3 mb-4">
 
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-lg">
                 <div class="stat-card" style="border-color: #6c757d;">
                     <div class="text-muted small fw-bold">الراتب الأساسي</div>
                     <div class="stat-value text-secondary">{{ emp.base_salary }}</div>
                 </div>
             </div>
 
-            <div class="col-6 col-md-3">
-                <div class="stat-card" style="border-color: #198754;">
+            <div class="col-6 col-lg">
+                <div class="stat-card" style="border-color: #0d6efd;">
                     <div class="text-muted small fw-bold">
                         العمولات
-                        <br>
-                        <span class="badge bg-primary rounded-pill" style="font-size: 0.6em;">مبيعات: {{ gross_items }}</span>
-                        <span class="badge bg-danger rounded-pill" style="font-size: 0.6em;">مرتجعات: {{ returned_items }}</span>
-                        <span class="badge bg-success rounded-pill" style="font-size: 0.7em;">صافي: {{ total_items }}</span>
+                        <span class="badge bg-primary rounded-pill" style="font-size: 0.7em;">{{ gross_items }} قطعة</span>
                     </div>
-                    <div class="stat-value text-success">+{{ commission }}</div>
+                    <div class="stat-value text-primary">+{{ commission }}</div>
                 </div>
             </div>
 
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-lg">
+                <div class="stat-card" style="border-color: #dc3545;">
+                    <div class="text-muted small fw-bold">
+                        المرتجعات
+                        <span class="badge bg-danger rounded-pill" style="font-size: 0.7em;">{{ returned_items }} قطعة</span>
+                    </div>
+                    <div class="stat-value text-danger">-{{ total_returns_deduction }}</div>
+                </div>
+            </div>
+
+            <div class="col-6 col-lg">
                 <div class="stat-card" style="border-color: #198754;">
                     <div class="text-muted small fw-bold">مكافآت وحوافز</div>
                     <div class="stat-value text-success">+{{ bonuses }}</div>
                 </div>
             </div>
 
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-lg">
                 <div class="stat-card" style="border-color: #dc3545;">
                     <div class="text-muted small fw-bold">خصومات وسلف</div>
-                    <div class="stat-value text-danger">-{{ deductions + advances }}</div>
+                    <div class="stat-value text-danger">-{{ other_deductions + advances }}</div>
                 </div>
             </div>
 

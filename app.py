@@ -5274,7 +5274,9 @@ def employee_profile(id):
     attendance_deduction, attendance_details, overtime_bonus = calculate_attendance_deduction(emp, month_str, att_settings, daily_rate)
     
     past_returns_deduction = sum(abs(t.amount) for t in hr_trans if t.type == 'return_reversal')
-    deductions = round_half(base_deductions + attendance_deduction + return_commission_value + past_returns_deduction)
+    total_returns_deduction = round_half(return_commission_value + past_returns_deduction)
+    other_deductions = round_half(base_deductions + attendance_deduction)
+    deductions = round_half(other_deductions + total_returns_deduction)
     bonuses = round_half(base_bonuses + overtime_bonus)
     advances = round_half(advances)
 
@@ -5302,6 +5304,8 @@ def employee_profile(id):
                            commission=commission,
                            bonuses=bonuses,
                            deductions=deductions,
+                           other_deductions=other_deductions,
+                           total_returns_deduction=total_returns_deduction,
                            advances=advances,
                            net_salary=net_salary,
                            transactions=transactions,
