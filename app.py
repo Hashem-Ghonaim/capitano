@@ -3012,18 +3012,21 @@ def fix_commissions_manual():
         count += 1
 
     return f"تم تحديث العمولات لـ {count} موظف ومدير بنجاح! راجع تقرير الشركاء الآن."
-def add_split_partner_transaction(partner_id, type_val, amount, description, order_id=None):
+def add_split_partner_transaction(partner_id, type_val, amount, description, order_id=None, date=None):
     """
     مساعد لإضافة حركة شراكة بالمبلغ الكامل (بدون تقسيم 50/50).
     التقارير بتجمع كل حركات الشراكة ب partner_id IN (1, 3) فالإجمالي مظبوط.
     """
-    db.session.add(PartnerTransaction(
+    pt = PartnerTransaction(
         partner_id=partner_id,
         order_id=order_id,
         type=type_val,
         amount=amount,
         description=description
-    ))
+    )
+    if date:
+        pt.date = date
+    db.session.add(pt)
 
 def update_monthly_commissions(sales_rep_id, ref_date):
     """
@@ -3149,7 +3152,8 @@ def update_monthly_commissions(sales_rep_id, ref_date):
                     order_id=order.id,
                     type_val='sub_commission',
                     amount=-girl_comm,
-                    description=f"عمولة ({sales_rep.fullname}) - فاتورة #{order.id} ({net_qty} قطعة × {rate_per_item})"
+                    description=f"عمولة ({sales_rep.fullname}) - فاتورة #{order.id} ({net_qty} قطعة × {rate_per_item})",
+                date=order.date
                 )
 
         # with open('debug_comm_log.txt', 'a', encoding='utf-8') as f:
@@ -5252,9 +5256,11 @@ def employee_profile(id):
         cast(ReturnInvoice.date, Date) < month_end.date()
     ).scalar() or 0
     
-    net_items = max(0, gross_items - returned_items)
-    commission = round_half(calculate_user_commission(emp, net_items, net_items))
-
+    # حساب العمولة الإجمالية وخصم المرتجعات
+    gross_commission = calculate_user_commission(emp, gross_items, gross_items)
+    return_commission_value = calculate_user_commission(emp, returned_items, gross_items)
+    commission = round_half(gross_commission)
+    
     hr_trans = HRTransaction.query.filter(HRTransaction.user_id == emp.id, HRTransaction.date >= month_start, HRTransaction.date < month_end).all()
 
     base_bonuses = sum(t.amount for t in hr_trans if t.type == 'bonus')
@@ -5266,7 +5272,8 @@ def employee_profile(id):
     daily_rate = (emp.base_salary or 0) / 30
     attendance_deduction, attendance_details, overtime_bonus = calculate_attendance_deduction(emp, month_str, att_settings, daily_rate)
     
-    deductions = round_half(base_deductions + attendance_deduction)
+    past_returns_deduction = sum(abs(t.amount) for t in hr_trans if t.type == 'return_reversal')
+    deductions = round_half(base_deductions + attendance_deduction + return_commission_value + past_returns_deduction)
     bonuses = round_half(base_bonuses + overtime_bonus)
     advances = round_half(advances)
 
@@ -7064,10 +7071,9 @@ def payroll():
             .filter(SaleOrder.user_id == u.id,
                     func.to_char(ReturnInvoice.date, 'YYYY-MM') == month_str).scalar() or 0
 
-        net_current_month_items = max(0, current_month_items - returned_items_current_month)
-
-        # حساب العمولة بناءً على (صافي) قطع الشهر الحالي فقط
-        commission = calculate_user_commission(u, net_current_month_items, net_current_month_items)
+        # حساب العمولة بناءً على إجمالي قطع الشهر الحالي وخصم المرتجعات بقيمتها
+        commission = calculate_user_commission(u, current_month_items, current_month_items)
+        return_commission_value = calculate_user_commission(u, returned_items_current_month, current_month_items)
 
         # 3. حساب جزاءات الحضور (بواسطة المساعد)
         attendance_deduction, attendance_details, overtime_bonus = calculate_attendance_deduction(u, month_str, att_settings, daily_rate)
@@ -7080,7 +7086,8 @@ def payroll():
         bonuses = sum(t.amount for t in hr_trans if t.type == 'bonus') + overtime_bonus
         advances = sum(t.amount for t in hr_trans if t.type == 'advance')
         other_penalties = sum(t.amount for t in hr_trans if t.type in ['penalty', 'deduction'])
-        past_returns_deduction = sum(abs(t.amount) for t in hr_trans if t.type == 'return_reversal')
+        manual_returns_deduction = sum(abs(t.amount) for t in hr if t.type == 'return_reversal')
+        past_returns_deduction = manual_returns_deduction
 
         # 5. المعادلة النهائية الشاملة للاستحقاقات والاستقطاعات
         total_income = (u.base_salary or 0) + commission + bonuses
@@ -9249,7 +9256,9 @@ def hr_payroll():
         daily_rate = (emp.base_salary or 0) / 30
         attendance_deduction, att_details, overtime_bonus = calculate_attendance_deduction(emp, month_label, att_settings, daily_rate)
         
-        deductions = round_half(base_deductions + attendance_deduction)
+        manual_returns_deduction = sum(abs(t.amount) for t in hr if t.type == 'return_reversal')
+        past_returns_deduction = manual_returns_deduction
+        deductions = round_half(base_deductions + attendance_deduction + return_commission_value + past_returns_deduction)
         bonuses = round_half(base_bonuses + overtime_bonus)
         advances = round_half(advances)
 

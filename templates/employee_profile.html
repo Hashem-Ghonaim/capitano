@@ -125,8 +125,10 @@
                 <div class="stat-card" style="border-color: #198754;">
                     <div class="text-muted small fw-bold">
                         العمولات
-                        <span class="badge bg-success rounded-pill" style="font-size: 0.7em;">{{ total_items }}
-                            قطعة</span>
+                        <br>
+                        <span class="badge bg-primary rounded-pill" style="font-size: 0.6em;">مبيعات: {{ gross_items }}</span>
+                        <span class="badge bg-danger rounded-pill" style="font-size: 0.6em;">مرتجعات: {{ returned_items }}</span>
+                        <span class="badge bg-success rounded-pill" style="font-size: 0.7em;">صافي: {{ total_items }}</span>
                     </div>
                     <div class="stat-value text-success">+{{ commission }}</div>
                 </div>
