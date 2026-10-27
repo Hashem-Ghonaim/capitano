@@ -4442,10 +4442,15 @@ def public_catalog():
                 'products': products
             })
 
+    setting = SystemSetting.query.first()
+    company_name = setting.company_name if setting and setting.company_name else "مصنع كابيتانو"
+    company_logo = setting.company_logo if setting and setting.company_logo else 'Untitled_design.png'
+
     return render_template('public_catalog.html',
                            catalog_data=catalog_data,
                            ref_phone=ref_phone,
-                           company_name= "مصنع فور برازر")
+                           company_logo=company_logo,
+                           company_name=company_name)
 @app.route('/invoice/convert/<int:id>')
 @login_required
 def convert_to_invoice(id):
