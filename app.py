@@ -24,6 +24,7 @@ def round_half(value):
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, cast, Date, text, inspect, or_, event
 from sqlalchemy.pool import NullPool
+from sqlalchemy.orm import selectinload, joinedload
 import re  # تأكد أن هذا السطر موجود في أول الملف مع الـ imports
 app = Flask(__name__)
 import traceback
@@ -578,7 +579,11 @@ def inject_global_vars():
     try:
         from flask_login import current_user
         if current_user.is_authenticated and current_user.role == 'general_manager':
-            pending_reviews_count = SaleOrder.query.filter_by(is_proforma=False, is_reviewed=False).count()
+            # استخدام count بدون تحميل بيانات - خفيف على الداتابيز
+            pending_reviews_count = db.session.query(func.count(SaleOrder.id)).filter(
+                SaleOrder.is_proforma == False,
+                SaleOrder.is_reviewed == False
+            ).scalar() or 0
     except:
         pass
         
@@ -694,12 +699,13 @@ def get_accessible_users():
     """
     # المدير العام أو الموظفة الخاصة EMP201 أبو مالك يشوفوا الكل
     if current_user.role == 'general_manager' or current_user.emp_code == 'EMP201' or current_user.username == 'Abo_malek':
-        return [u.id for u in User.query.all()]
+        # تحسين: جلب IDs فقط بدل تحميل كل بيانات المستخدمين
+        return [r[0] for r in db.session.query(User.id).all()]
 
     elif current_user.role == 'manager':
         # مدير الفريق يرى نفسه + الموظفين الذين يدارون من قبله
-        team = User.query.filter_by(manager_id=current_user.id).all()
-        return [current_user.id] + [u.id for u in team]
+        team_ids = [r[0] for r in db.session.query(User.id).filter_by(manager_id=current_user.id).all()]
+        return [current_user.id] + team_ids
 
     else:
         # الموظف العادي يرى بياناته هو فقط
@@ -4908,6 +4914,13 @@ def invoices():
         # عرض الفواتير التامة فقط
         query = query.filter(SaleOrder.is_proforma == False)
 
+    # === تحسين الأداء: Eager Loading لمنع N+1 queries ===
+    # تحميل items مع variants مرة واحدة بدل ما كل item يعمل query منفصل
+    query = query.options(
+        selectinload(SaleOrder.items).selectinload(SaleItem.variant).selectinload(ProductVariant.model),
+        selectinload(SaleOrder.sales_rep)
+    )
+
     orders = query.order_by(SaleOrder.date.desc()).all()
 
     # 3. حساب الإجماليات (للمدير العام فقط) - سيتم الحساب بناءً على القائمة المفلترة
@@ -4917,13 +4930,17 @@ def invoices():
         'total_comm': 0, 'total_company_net': 0, 'total_items': 0
     }
 
+    # تحميل بيانات البائعين مرة واحدة بدل query لكل فاتورة
     if is_gm:
+        seller_ids = set(o.user_id for o in orders if o.user_id)
+        sellers_map = {u.id: u for u in User.query.filter(User.id.in_(seller_ids)).all()} if seller_ids else {}
+
         for o in orders:
             # نفس منطق الحساب القديم
             o.real_cost = sum((i.variant.cost_price or 0) * i.quantity for i in o.items if i.variant)
 
-            # عمولة تقديرية
-            seller = db.session.get(User, o.user_id) if o.user_id else None
+            # عمولة تقديرية - استخدام الـ cache بدل query لكل فاتورة
+            seller = sellers_map.get(o.user_id)
             o.est_comm = 0
             if seller:
                 order_qty = sum(i.quantity for i in o.items)
@@ -9504,7 +9521,7 @@ def pending_count_api():
     """API لعدد الطلبات المعلقة - للإشعارات في الـ navbar"""
     if current_user.role != 'general_manager':
         return jsonify({'count': 0})
-    count = PendingFinancialAction.query.filter_by(status='pending').count()
+    count = db.session.query(func.count(PendingFinancialAction.id)).filter_by(status='pending').scalar() or 0
     return jsonify({'count': count})
 
 @app.route('/api/add_income', methods=['POST'])
