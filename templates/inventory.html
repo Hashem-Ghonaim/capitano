@@ -147,8 +147,8 @@
                                 <th>سعر البيع</th>
                                 {% if current_user.role != 'manager' %}
                                 <th>هامش الربح</th>
-                                <th>عمولة الشريك</th>
                                 {% endif %}
+                                <th>عمولة الشريك</th>
                                 <th>المخزون</th>
                                 <th>إجراءات</th>
                             </tr>
@@ -160,8 +160,8 @@
                                 <td id="totalSell" class="text-success">0.00</td>
                                 {% if current_user.role != 'manager' %}
                                 <td id="totalProfit" class="text-primary">0.00</td>
-                                <td></td>
                                 {% endif %}
+                                <td></td>
                                 <td id="totalStock" class="text-dark">0</td>
                                 <td></td>
                             </tr>
@@ -208,10 +208,10 @@
                                 <td class="fw-bold text-primary" data-id="{{ p.id }}" data-field="profit">
                                     {{ "%.2f"|format(p.sell_price - p.cost_price) }}
                                 </td>
-                                <td class="editable fw-bold text-warning" data-id="{{ p.id }}" data-field="commission">
+                                {% endif %}
+                                <td class="{% if current_user.role != 'manager' %}editable {% endif %}fw-bold text-warning" data-id="{{ p.id }}" data-field="commission">
                                     {{ p.model.partner_commission }}
                                 </td>
-                                {% endif %}
 
                                 <td class="{% if current_user.role != 'manager' %}editable {% endif %}"
                                     data-id="{{ p.id }}" data-field="stock">
@@ -246,7 +246,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="{% if current_user.role != 'manager' %}8{% else %}7{% endif %}"
+                                <td colspan="{% if current_user.role != 'manager' %}10{% else %}8{% endif %}"
                                     class="py-5 text-muted">المخزن فارغ</td>
                             </tr>
                             {% endfor %}

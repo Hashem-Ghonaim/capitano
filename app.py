@@ -7456,6 +7456,8 @@ def quick_update_product():
         elif field == 'sell':
             variant.sell_price = float(value)
         elif field == 'commission':
+            if current_user.role == 'manager':
+                return jsonify({'success': False, 'message': 'غير مصرح للمديرين بتعديل عمولة الشريك'}), 403
             variant.model.partner_commission = float(value)
         elif field == 'stock':
             old_stock = variant.stock
