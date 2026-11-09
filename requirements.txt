@@ -7,3 +7,4 @@ pg8000
 pytz==2023.3.post1
 cloudinary==1.46.0
 python-dotenv
+requests>=2.31.0

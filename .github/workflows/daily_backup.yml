@@ -1,0 +1,59 @@
+name: Automated Daily Cloud-to-Cloud Backup
+
+on:
+  schedule:
+    # Runs at 01:00 UTC every day -> Exactly 03:00 AM Cairo Time (UTC+2)
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual backup trigger'
+        required: false
+        default: 'Manual trigger by Admin'
+
+jobs:
+  cloud-backup:
+    name: Execute Full Cloud Backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Execute Backup & Telegram Dispatch
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: |
+          python run_daily_backup.py
+
+      - name: Determine Current Date
+        if: always()
+        id: timestamp
+        run: echo "date=$(date +'%Y-%m-%d_%H-%M-%S')" >> $GITHUB_OUTPUT
+
+      - name: Upload Backup Archive as GitHub Artifact (14-day Safety Net)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: erp-backup-${{ steps.timestamp.outputs.date }}
+          path: backups/backup_*_full.zip
+          retention-days: 14
+          if-no-files-found: error
+

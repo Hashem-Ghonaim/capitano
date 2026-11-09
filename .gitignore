@@ -1,4 +1,22 @@
+# Backups and temporary files
+backups/
+*.zip
+*.db
 erp_crm.db
+
+# Dynamic uploads (preserve default template images)
+static/uploads/*
+!static/uploads/default.png
+!static/uploads/Logo.jpg
+!static/uploads/1771672598_Gemini_Generated_Image_rpys0srpys0srpys.png
+
+# Environments and credentials
+.env
+.env.*
+
+# Python caches
 __pycache__/
 *.pyc
-.env
+*.pyo
+venv/
+.venv/
